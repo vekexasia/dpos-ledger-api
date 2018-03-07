@@ -1,6 +1,5 @@
-import { LedgerAccount } from '../src/account';
+import { LedgerAccount } from '../../src/account';
 import { expect } from 'chai';
-import { derivePath } from '../src/library';
 
 describe('LedgerAccount', () => {
   it('should initialize with correct default values', () => {

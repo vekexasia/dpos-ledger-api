@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "test-unit": "mocha  --bail --require ts-node/register './tests/unit/**/*.spec.ts'"
+    "test-unit": "mocha  --bail --require ts-node/register './tests/unit/**/*.spec.ts'",
+    "test-int": "mocha  --bail --require ts-node/register './tests/integration/**/*.spec.ts'"
   },
   "author": "",
   "license": "MIT",
@@ -19,10 +20,10 @@
     "@types/node": "^8.0.44",
     "@types/sinon": "^4.3.0",
     "chai": "^4.1.2",
-    "dpos-offline": "^1.3.0",
+    "dpos-offline": "^1.3.2",
     "mocha": "^5.0.3",
     "sinon": "^4.4.2",
-    "sodium": "^2.0.1",
+    "sodium": "^2.0.3",
     "ts-node": "^5.0.1",
     "typescript": "^2.7.2"
   }

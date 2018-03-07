@@ -6,29 +6,6 @@ type Ledger = {
   exchange(data: string, statuses: number[]): Promise<string>
 }
 
-/**
- * Derive bip32Path in an encoded buffer.
- * @param {string | string[]} path
- * @returns {Buffer}
- */
-export function derivePath(path: string | string[]): Buffer {
-  const result: number[]     = [];
-  const components: string[] = typeof(path) === 'string' ? path.split('/') : path;
-  components.forEach(function (element) {
-    let number = parseInt(element, 10);
-    if (isNaN(number)) {
-      return;
-    }
-    if ((element.length > 1) && (element[element.length - 1] == "'")) {
-      number += 0x80000000;
-    }
-    result.push(number);
-  });
-  const retBuf = Buffer.alloc(result.length * 4);
-  result.forEach((r, idx) => retBuf.writeUInt32BE(r, idx * 4));
-
-  return retBuf;
-}
 
 export class DposLedger {
   private comm: Ledger = null;
@@ -38,12 +15,15 @@ export class DposLedger {
 
   public async getPubKey(account: LedgerAccount): Promise<string> {
     const pathBuf     = account.derivePath();
-    const [publicKey] = await this.exchange([
+    const resp        = await this.exchange([
       'e0',
       '04',
       (pathBuf.length / 4),
       pathBuf
     ]);
+    // console.log(resp.map((i) => i.toString('hex')));
+    const [publicKey] = resp;
+
     return publicKey.toString('hex');
   }
 
@@ -51,8 +31,10 @@ export class DposLedger {
     return this.sign('05', account, buff, hasRequesterPKey);
   }
 
-  public signMSG(account: LedgerAccount, what: string | Buffer) {
-    return this.sign('06', account, typeof(what) === 'string' ? new Buffer(what, 'utf8') : what);
+  public async signMSG(account: LedgerAccount, what: string | Buffer) {
+    const buffer: Buffer = typeof(what) === 'string' ? new Buffer(what, 'utf8') : what;
+    const signature      = await this.sign('06', account, buffer);
+    return Buffer.concat([signature, buffer]);
   }
 
   private async sign(signType: string, account: LedgerAccount, buff: Buffer, hasRequesterPKey: boolean = false): Promise<Buffer> {
@@ -75,6 +57,12 @@ export class DposLedger {
     return signature;
   }
 
+  public async ping(): Promise<void> {
+    const [res] = await this.exchange('e008');
+    if (res.toString('utf8') !== 'PONG') {
+      throw new Error('Didnt receive PONG');
+    }
+  }
   /**
    * Raw exchange protocol handling
    * @param {string | Buffer} hexData
@@ -109,6 +97,7 @@ export class DposLedger {
     const tempBuffer = new Buffer(chunkDataSize + 1 /*howManyBytes This time*/ + 1 /*commcode*/);
     // APDU Command for ledger to let him know we're in a multi-send-command
     tempBuffer.writeUInt8(90, 0);
+    console.log(nChunks);
     for (let i = 0; i < nChunks; i++) {
       const dataSize = Math.min(inputBuffer.length, (i + 1) * chunkDataSize) - i * chunkDataSize;
       tempBuffer.writeUInt8(dataSize, 1);
@@ -123,6 +112,11 @@ export class DposLedger {
         ),
         'hex'
       );
+      console.log(tempBuffer
+        .slice(0, dataSize + 2)
+        .toString('hex'));
+      console.log(this.decomposeResponse(resBuf).map((buf) => buf.toString('hex')));
+      // console.log('DataSize', dataSize.toString(16));
       // if (resBuf.toString('hex') !== dataSize.toString(16)) {
       //   // TODO: Assess feasibility of sha256
       //   throw new Error(`Communication went wrong. Expected ${dataSize.toString(16)} - received ${resBuf.toString('hex')} - Size: ${dataSize}`)
@@ -132,9 +126,12 @@ export class DposLedger {
     // Close comm flow.
     const closingBuffer = new Buffer(1);
     closingBuffer.writeUInt8(91, 0);
-
+    console.log('pre');
     const resBuf = new Buffer(await this.comm.exchange(closingBuffer.toString('hex'), [0x9000]), 'hex');
+    return this.decomposeResponse(resBuf);
+  }
 
+  private decomposeResponse(resBuf: Buffer): Array<Buffer> {
     const totalElements        = resBuf.readInt8(0);
     const toRet: Array<Buffer> = [];
     let index                  = 1; // 1 read uint8_t

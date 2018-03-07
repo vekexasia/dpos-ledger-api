@@ -1,8 +1,8 @@
 import { expect } from 'chai';
 import * as sinon from 'sinon';
 import { SinonSpy, SinonStub } from 'sinon';
-import { DposLedger } from '../src/library';
-import { LedgerAccount } from '../src/account';
+import { DposLedger } from '../../src/library';
+import { LedgerAccount } from '../../src/account';
 
 describe('library', () => {
   let instance: DposLedger;
