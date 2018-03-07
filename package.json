@@ -1,0 +1,17 @@
+{
+  "name": "dpos-ledger-api",
+  "version": "1.0.0",
+  "description": "This library eases the interaction with the corresponding ledger nano implementation",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^8.0.44",
+    "dpos-offline": "^1.3.0",
+    "ledgerco": "^1.2.1",
+    "sodium": "^2.0.1"
+  }
+}
