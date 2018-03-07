@@ -1,6 +1,5 @@
 import * as ledger from 'ledgerco';
-import { dposOffline } from 'dpos-offline';
-import { rise } from 'risejs';
+import { LedgerAccount } from './account';
 
 type Ledger = {
   close_async(): Promise<any>
@@ -37,8 +36,8 @@ export class DposLedger {
   constructor() {
   }
 
-  public async getPubKeyAt(index: number): Promise<string> {
-    const pathBuf     = derivePath(`41'/144'/0'/0'/${index}'`);
+  public async getPubKey(account: LedgerAccount): Promise<string> {
+    const pathBuf     = account.derivePath();
     const [publicKey] = await this.exchange([
       'e0',
       '04',
@@ -48,16 +47,16 @@ export class DposLedger {
     return publicKey.toString('hex');
   }
 
-  public signTX(index: number, buff: Buffer, hasRequesterPKey: boolean = false) {
-    return this.sign('05', index, buff, hasRequesterPKey);
+  public signTX(account: LedgerAccount, buff: Buffer, hasRequesterPKey: boolean = false) {
+    return this.sign('05', account, buff, hasRequesterPKey);
   }
 
-  public signMSG(index: number, what: string | Buffer) {
-    return this.sign('06', index, typeof(what) === 'string' ? new Buffer(what, 'utf8') : what);
+  public signMSG(account: LedgerAccount, what: string | Buffer) {
+    return this.sign('06', account, typeof(what) === 'string' ? new Buffer(what, 'utf8') : what);
   }
 
-  private async sign(signType: string, index: number, buff: Buffer, hasRequesterPKey: boolean = false): Promise<Buffer> {
-    const pathBuf    = derivePath(`41'/144'/0'/0'/${index}'`);
+  private async sign(signType: string, account: LedgerAccount, buff: Buffer, hasRequesterPKey: boolean = false): Promise<Buffer> {
+    const pathBuf    = account.derivePath();
     const buffLength = new Buffer(2);
     buffLength.writeUInt16BE(buff.length, 0);
     const args        = await this.exchange([
@@ -103,9 +102,38 @@ export class DposLedger {
       inputBuffer = hexData;
     }
 
-    // console.log(inputBuffer.toString('hex'));
+    // Calculate number of chunks to send.
+    const chunkDataSize = 200;
+    const nChunks       = Math.ceil(hexData.length / chunkDataSize);
 
-    const resBuf = new Buffer(await this.comm.exchange(inputBuffer.toString('hex'), [0x9000]), 'hex');
+    const tempBuffer = new Buffer(chunkDataSize + 1 /*howManyBytes This time*/ + 1 /*commcode*/);
+    // APDU Command for ledger to let him know we're in a multi-send-command
+    tempBuffer.writeUInt8(90, 0);
+    for (let i = 0; i < nChunks; i++) {
+      const dataSize = Math.min(inputBuffer.length, (i + 1) * chunkDataSize) - i * chunkDataSize;
+      tempBuffer.writeUInt8(dataSize, 1);
+
+      // copy chunk data
+      inputBuffer.copy(tempBuffer, 2, i * chunkDataSize, i * chunkDataSize + dataSize);
+      const resBuf = new Buffer(await this.comm.exchange(
+        tempBuffer
+          .slice(0, dataSize + 2)
+          .toString('hex'),
+        [0x9000]
+        ),
+        'hex'
+      );
+      // if (resBuf.toString('hex') !== dataSize.toString(16)) {
+      //   // TODO: Assess feasibility of sha256
+      //   throw new Error(`Communication went wrong. Expected ${dataSize.toString(16)} - received ${resBuf.toString('hex')} - Size: ${dataSize}`)
+      // }
+    }
+
+    // Close comm flow.
+    const closingBuffer = new Buffer(1);
+    closingBuffer.writeUInt8(91, 0);
+
+    const resBuf = new Buffer(await this.comm.exchange(closingBuffer.toString('hex'), [0x9000]), 'hex');
 
     const totalElements        = resBuf.readInt8(0);
     const toRet: Array<Buffer> = [];
@@ -126,60 +154,12 @@ export class DposLedger {
     }
   }
 
-  async init() {
+  public async init() {
     this.comm = await ledger.comm_node.create_async();
   }
 
-  tearDown() {
+  public tearDown() {
     return this.comm.close_async();
   }
 }
 
-
-const sodium = require('sodium').api;
-
-
-async function test() {
-  rise.nodeAddress = 'https://twallet.oxycoin.io';
-  const transport  = rise.transport({
-    nethash: '0daee950841005a3f56f6588b4b084695f0d74aaa38b21edab73446064638552',
-    version: '0.1.1',
-    port   : 1234
-  });
-  const dl         = new DposLedger();
-
-  let pubKey = await dl.getPubKeyAt(1);
-  const tx   = new dposOffline.transactions.SendTx()
-    .set('amount', 10)
-    .set('fee', 10000000)
-    .set('senderPublicKey', pubKey)
-    .set('timestamp', 10)
-    .set('recipientId', '4628314282301468484X');
-
-
-  const address = dposOffline.utils.deriveDPOSAddress(pubKey, 'X');
-
-  let bytes = tx.getBytes();
-  bytes     = new Buffer(0);
-  for (let i = 0; i < 1024; i++) {
-    const tmpBuff = new Buffer(1);
-    tmpBuff.writeUInt8(i % 256, 0);
-    bytes           = Buffer.concat([bytes, tmpBuff]);
-    const signature = await dl.signTX(1, bytes);
-    // console.log(await transport.postTransaction(txObj));
-    const res       = sodium.crypto_sign_verify_detached(
-      signature,
-      bytes,
-      new Buffer(pubKey, 'hex')
-    );
-    if (!res) {
-      console.log('fail', i);
-      console.log(bytes.toString('hex'));
-    }
-  }
-
-}
-
-// test();
-
-// new DposLedger().getPubKeyAt(2111).then(console.log);

@@ -4,14 +4,26 @@
   "description": "This library eases the interaction with the corresponding ledger nano implementation",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test-unit": "mocha  --bail --require ts-node/register './tests/unit/**/*.spec.ts'"
   },
   "author": "",
   "license": "MIT",
+  "dependencies": {
+    "bip32-path": "^0.4.2",
+    "ledgerco": "^1.2.1"
+  },
   "devDependencies": {
+    "@types/chai": "^4.1.2",
+    "@types/mocha": "^2.2.48",
     "@types/node": "^8.0.44",
+    "@types/sinon": "^4.3.0",
+    "chai": "^4.1.2",
     "dpos-offline": "^1.3.0",
-    "ledgerco": "^1.2.1",
-    "sodium": "^2.0.1"
+    "mocha": "^5.0.3",
+    "sinon": "^4.4.2",
+    "sodium": "^2.0.1",
+    "ts-node": "^5.0.1",
+    "typescript": "^2.7.2"
   }
 }

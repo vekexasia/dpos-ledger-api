@@ -9,7 +9,7 @@ import * as crypto from 'crypto';
 const dl = new DposLedger();
 
 async function brocca(msg:Buffer) {
-  const pk = await dl.getPubKeyAt(1);
+  const pk = await dl.getPubKey(1);
   const signature = await dl.signMSG(1, msg);
   const hash = crypto.createHash('sha256').update(msg).digest();
   console.log('Signature Received', signature.toString('hex'));
@@ -27,7 +27,7 @@ async function brocca(msg:Buffer) {
 }
 
 async function broccaTX(msg:Buffer) {
-  const pk = await dl.getPubKeyAt(1);
+  const pk = await dl.getPubKey(1);
   const signature = await dl.signTX(1, msg);
   const hash = crypto.createHash('sha256').update(msg).digest();
   console.log('Signature Received', signature.toString('hex'));
