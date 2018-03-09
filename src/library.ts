@@ -1,17 +1,18 @@
+import { crc16ccitt as crc16 } from 'crc';
 import * as ledger from 'ledgerco';
 import { LedgerAccount } from './account';
-import { crc16ccitt as crc16 } from 'crc';
 
-type Ledger = {
-  close_async(): Promise<any>
-  exchange(data: string, statuses: number[]): Promise<string>
+interface ILedger {
+  close_async(): Promise<any>;
+
+  exchange(data: string, statuses: number[]): Promise<string>;
 }
 
 /**
  * Communication Protocol class
  */
 export class DposLedger {
-  private comm: Ledger = null;
+  private comm: ILedger = null;
 
   /**
    * @param {number} chunkSize lets you specify the chunkSize for each communication
@@ -32,12 +33,12 @@ export class DposLedger {
    * @returns {Promise<string>}
    */
   public async getPubKey(account: LedgerAccount): Promise<string> {
-    const pathBuf     = account.derivePath();
-    const resp        = await this.exchange([
+    const pathBuf = account.derivePath();
+    const resp    = await this.exchange([
       'e0',
       '04',
       (pathBuf.length / 4),
-      pathBuf
+      pathBuf,
     ]);
 
     const [publicKey] = resp;
@@ -64,40 +65,13 @@ export class DposLedger {
    * Displaying the message to the user.
    * @param {LedgerAccount} account
    * @param {string | Buffer} what the message to sign
-   * @returns {Promise<Buffer>} the "non-detached" signature. Signature goodness can be verified using sodium. See tests.
+   * @returns {Promise<Buffer>} the "non-detached" signature.
+   * Signature goodness can be verified using sodium. See tests.
    */
   public async signMSG(account: LedgerAccount, what: string | Buffer) {
     const buffer: Buffer = typeof(what) === 'string' ? new Buffer(what, 'utf8') : what;
     const signature      = await this.sign('06', account, buffer);
     return Buffer.concat([signature, buffer]);
-  }
-
-  /**
-   * Raw sign protocol utility. It will handle signature of both msg and txs.
-   * @param {string} signType type of signature. 05 for txs, 06 for messages.
-   * @param {LedgerAccount} account account
-   * @param {Buffer} buff buffer to sign
-   * @param {boolean} hasRequesterPKey if it has a requesterpublickey (used only in tx signing mode)
-   * @returns {Promise<Buffer>} the signature
-   */
-  private async sign(signType: string, account: LedgerAccount, buff: Buffer, hasRequesterPKey: boolean = false): Promise<Buffer> {
-    const pathBuf    = account.derivePath();
-    const buffLength = new Buffer(2);
-    buffLength.writeUInt16BE(buff.length, 0);
-    const args        = await this.exchange([
-      'e0',
-      signType, // sign
-      // Bip32
-      (pathBuf.length / 4),
-      pathBuf,
-      // headers
-      buffLength,
-      hasRequesterPKey ? '01' : '00',
-      // data
-      buff
-    ]);
-    const [signature] = args;
-    return signature;
   }
 
   /**
@@ -116,7 +90,7 @@ export class DposLedger {
    * @param {string | Buffer} hexData
    * @returns {Promise<Buffer[]>} Raw response buffers.
    */
-  public async exchange(hexData: string | Buffer | (string | Buffer | number)[]): Promise<Buffer[]> {
+  public async exchange(hexData: string | Buffer | Array<(string | Buffer | number)>): Promise<Buffer[]> {
     await this.ensureInitialized();
 
     let inputBuffer: Buffer;
@@ -168,9 +142,8 @@ export class DposLedger {
           'hex'
         )
       );
-      const crc    = crc16(inputBuffer.slice(0, i * chunkDataSize + dataSize));
-      const receivedCRC = ledgerCRC16.readUInt16LE(0);
-
+      const crc           = crc16(inputBuffer.slice(0, i * chunkDataSize + dataSize));
+      const receivedCRC   = ledgerCRC16.readUInt16LE(0);
 
       if (crc !== receivedCRC) {
         throw new Error('Something went wrong during CRC validation');
@@ -182,36 +155,6 @@ export class DposLedger {
     closingBuffer.writeUInt8(91, 0);
     const resBuf = new Buffer(await this.comm.exchange(closingBuffer.toString('hex'), [0x9000]), 'hex');
     return this.decomposeResponse(resBuf);
-  }
-
-  /**
-   * Internal utility to decompose the ledger response as protocol definition.
-   * @param {Buffer} resBuf response from ledger
-   * @returns {Array<Buffer>} decomposed response.
-   */
-  private decomposeResponse(resBuf: Buffer): Array<Buffer> {
-    const totalElements        = resBuf.readInt8(0);
-    const toRet: Array<Buffer> = [];
-    let index                  = 1; // 1 read uint8_t
-
-    for (let i = 0; i < totalElements; i++) {
-      const elLength = resBuf.readInt16LE(index);
-      index += 2;
-      toRet.push(resBuf.slice(index, index + elLength));
-      index += elLength;
-    }
-
-    return toRet;
-  }
-
-  /**
-   * Utility to ensure ledger comm. is initialized
-   * @returns {Promise<void>}
-   */
-  private async ensureInitialized() {
-    if (this.comm === null) {
-      await this.init();
-    }
   }
 
   /**
@@ -229,5 +172,66 @@ export class DposLedger {
   public tearDown() {
     return this.comm.close_async();
   }
-}
 
+  /**
+   * Raw sign protocol utility. It will handle signature of both msg and txs.
+   * @param {string} signType type of signature. 05 for txs, 06 for messages.
+   * @param {LedgerAccount} account account
+   * @param {Buffer} buff buffer to sign
+   * @param {boolean} hasRequesterPKey if it has a requesterpublickey (used only in tx signing mode)
+   * @returns {Promise<Buffer>} the signature
+   */
+  private async sign(
+    signType: string,
+    account: LedgerAccount,
+    buff: Buffer,
+    hasRequesterPKey: boolean = false): Promise<Buffer> {
+
+    const pathBuf    = account.derivePath();
+    const buffLength = new Buffer(2);
+    buffLength.writeUInt16BE(buff.length, 0);
+    const args        = await this.exchange([
+      'e0',
+      signType, // sign
+      // Bip32
+      (pathBuf.length / 4),
+      pathBuf,
+      // headers
+      buffLength,
+      hasRequesterPKey ? '01' : '00',
+      // data
+      buff,
+    ]);
+    const [signature] = args;
+    return signature;
+  }
+  /**
+   * Utility to ensure ledger comm. is initialized
+   * @returns {Promise<void>}
+   */
+  private async ensureInitialized() {
+    if (this.comm === null) {
+      await this.init();
+    }
+  }
+
+  /**
+   * Internal utility to decompose the ledger response as protocol definition.
+   * @param {Buffer} resBuf response from ledger
+   * @returns {Array<Buffer>} decomposed response.
+   */
+  private decomposeResponse(resBuf: Buffer): Buffer[] {
+    const totalElements        = resBuf.readInt8(0);
+    const toRet: Buffer[] = [];
+    let index                  = 1; // 1 read uint8_t
+
+    for (let i = 0; i < totalElements; i++) {
+      const elLength = resBuf.readInt16LE(index);
+      index += 2;
+      toRet.push(resBuf.slice(index, index + elLength));
+      index += elLength;
+    }
+
+    return toRet;
+  }
+}

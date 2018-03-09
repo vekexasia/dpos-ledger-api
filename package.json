@@ -4,6 +4,7 @@
   "description": "This library eases the interaction with the corresponding ledger nano implementation",
   "main": "index.js",
   "scripts": {
+    "tslint": "tslint --project .",
     "test": "echo \"Error: no test specified\" && exit 1",
     "test-unit": "mocha  --bail --require ts-node/register './tests/unit/**/*.spec.ts'",
     "test-int": "mocha  --bail --require ts-node/register './tests/integration/**/*.spec.ts'"
@@ -29,6 +30,7 @@
     "sinon": "^4.4.2",
     "sodium": "^2.0.3",
     "ts-node": "^5.0.1",
+    "tslint": "^5.9.1",
     "typescript": "^2.7.2"
   }
 }
