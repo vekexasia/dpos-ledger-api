@@ -14,6 +14,7 @@ module.exports = function(config) {
         base: 'Chrome',
         flags: ['--no-sandbox',
         '--disable-web-security',
+        '--allow-insecure-localhost',
         ]
       }
     },
@@ -79,7 +80,7 @@ module.exports = function(config) {
     // Concurrency level
     // how many browser should be started simultaneous
     concurrency: Infinity,
-    httpsServerConfig: {
+    httpsServerOptions: {
       key: fs.readFileSync('./tests/assets/key.pem'),
       cert: fs.readFileSync('./tests/assets/cert.pem'),
       requestCert: false,

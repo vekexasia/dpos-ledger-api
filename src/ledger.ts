@@ -6,9 +6,9 @@ export interface ILedger {
   exchange(data: string, statuses: number[]): Promise<string>;
 }
 
-export function createAsync(): Promise<ILedger> {
+export async function createAsync(): Promise<ILedger> {
   if (typeof(ledger.comm_node) === 'undefined') {
-    const toRet = ledger.comm_u2f.create_async();
+    const toRet = await ledger.comm_u2f.create_async();
     toRet.setScrambleKey(new Buffer('00', 'hex'));
     return toRet;
   }
