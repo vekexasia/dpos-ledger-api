@@ -7,16 +7,30 @@ type Ledger = {
   exchange(data: string, statuses: number[]): Promise<string>
 }
 
-
+/**
+ * Communication Protocol class
+ */
 export class DposLedger {
   private comm: Ledger = null;
 
+  /**
+   * @param {number} chunkSize lets you specify the chunkSize for each communication
+   * DO Not change if you don't know what you're doing.
+   */
   constructor(private chunkSize: number = 240) {
     if (chunkSize > 240) {
       throw new Error('Chunk Size cannot exceed 240');
     }
+    if (chunkSize < 1) {
+      throw new Error('Chunk Size cannot go below 1');
+    }
   }
 
+  /**
+   * Retrieves a publicKey associated to an account
+   * @param {LedgerAccount} account
+   * @returns {Promise<string>}
+   */
   public async getPubKey(account: LedgerAccount): Promise<string> {
     const pathBuf     = account.derivePath();
     const resp        = await this.exchange([
@@ -31,16 +45,41 @@ export class DposLedger {
     return publicKey.toString('hex');
   }
 
+  /**
+   * Signs a transaction. Transaction must be provided as a buffer using getBytes.
+   * @see https://github.com/vekexasia/dpos-offline/blob/master/src/trxTypes/BaseTx.ts#L52
+   * @param {LedgerAccount} account the account to use when signing the tx.
+   * @param {Buffer} buff buffer containing the bytes of a transaction
+   * @param {boolean} hasRequesterPKey use true if the tx also includes a requesterPublicKey.
+   * This cannot be derived using static analysis of the content included in the bytes.
+   * @returns {Promise<Buffer>} signature.
+   */
   public signTX(account: LedgerAccount, buff: Buffer, hasRequesterPKey: boolean = false) {
     return this.sign('05', account, buff, hasRequesterPKey);
   }
 
+  /**
+   * Signs a message. The message can be passed as a string or buffer.
+   * Note that if buffer contains "non-printable" characters, then the ledger will probably have some issues
+   * Displaying the message to the user.
+   * @param {LedgerAccount} account
+   * @param {string | Buffer} what the message to sign
+   * @returns {Promise<Buffer>} the "non-detached" signature. Signature goodness can be verified using sodium. See tests.
+   */
   public async signMSG(account: LedgerAccount, what: string | Buffer) {
     const buffer: Buffer = typeof(what) === 'string' ? new Buffer(what, 'utf8') : what;
     const signature      = await this.sign('06', account, buffer);
     return Buffer.concat([signature, buffer]);
   }
 
+  /**
+   * Raw sign protocol utility. It will handle signature of both msg and txs.
+   * @param {string} signType type of signature. 05 for txs, 06 for messages.
+   * @param {LedgerAccount} account account
+   * @param {Buffer} buff buffer to sign
+   * @param {boolean} hasRequesterPKey if it has a requesterpublickey (used only in tx signing mode)
+   * @returns {Promise<Buffer>} the signature
+   */
   private async sign(signType: string, account: LedgerAccount, buff: Buffer, hasRequesterPKey: boolean = false): Promise<Buffer> {
     const pathBuf    = account.derivePath();
     const buffLength = new Buffer(2);
@@ -61,6 +100,10 @@ export class DposLedger {
     return signature;
   }
 
+  /**
+   * Simple ping utility. It won't throw if ping suceeded.
+   * @returns {Promise<void>}
+   */
   public async ping(): Promise<void> {
     const [res] = await this.exchange('e008');
     if (res.toString('utf8') !== 'PONG') {
@@ -71,10 +114,10 @@ export class DposLedger {
   /**
    * Raw exchange protocol handling
    * @param {string | Buffer} hexData
-   * @returns {Promise<Buffer[]>}
+   * @returns {Promise<Buffer[]>} Raw response buffers.
    */
   public async exchange(hexData: string | Buffer | (string | Buffer | number)[]): Promise<Buffer[]> {
-    await this.assertInit();
+    await this.ensureInitialized();
 
     let inputBuffer: Buffer;
     if (Array.isArray(hexData)) {
@@ -141,6 +184,11 @@ export class DposLedger {
     return this.decomposeResponse(resBuf);
   }
 
+  /**
+   * Internal utility to decompose the ledger response as protocol definition.
+   * @param {Buffer} resBuf response from ledger
+   * @returns {Array<Buffer>} decomposed response.
+   */
   private decomposeResponse(resBuf: Buffer): Array<Buffer> {
     const totalElements        = resBuf.readInt8(0);
     const toRet: Array<Buffer> = [];
@@ -156,16 +204,28 @@ export class DposLedger {
     return toRet;
   }
 
-  private async assertInit() {
+  /**
+   * Utility to ensure ledger comm. is initialized
+   * @returns {Promise<void>}
+   */
+  private async ensureInitialized() {
     if (this.comm === null) {
       await this.init();
     }
   }
 
+  /**
+   * Public utility to initialize the ledger.
+   * @returns {Promise<void>}
+   */
   public async init() {
     this.comm = await ledger.comm_node.create_async();
   }
 
+  /**
+   * Closes the comm channel.
+   * @returns {Promise<any>}
+   */
   public tearDown() {
     return this.comm.close_async();
   }
