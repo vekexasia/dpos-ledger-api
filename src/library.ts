@@ -11,7 +11,10 @@ type Ledger = {
 export class DposLedger {
   private comm: Ledger = null;
 
-  constructor() {
+  constructor(private chunkSize: number = 240) {
+    if (chunkSize > 240) {
+      throw new Error('Chunk Size cannot exceed 240');
+    }
   }
 
   public async getPubKey(account: LedgerAccount): Promise<string> {
@@ -22,7 +25,7 @@ export class DposLedger {
       (pathBuf.length / 4),
       pathBuf
     ]);
-    // console.log(resp.map((i) => i.toString('hex')));
+
     const [publicKey] = resp;
 
     return publicKey.toString('hex');
@@ -95,16 +98,12 @@ export class DposLedger {
     // Send start comm packet
     const startCommBuffer = new Buffer('59aaaa', 'hex');
     startCommBuffer.writeUInt16BE(inputBuffer.length, 1);
-    // console.log('pre', startCommBuffer.toString('hex'));
+
     await this.comm.exchange(startCommBuffer.toString('hex'), [0x9000]);
-    // console.log('post - antani', this.decomposeResponse(new Buffer(res, 'hex')).map((i) => i.toString('hex')));
 
     // Calculate number of chunks to send.
-    const chunkDataSize = 100;
+    const chunkDataSize = this.chunkSize;
     const nChunks       = Math.ceil(inputBuffer.length / chunkDataSize);
-    // console.log(nChunks);
-    // console.log(inputBuffer.length);
-    // console.log(inputBuffer.toString('hex'));
 
     const tempBuffer = new Buffer(chunkDataSize + 1 /*howManyBytes This time*/ + 1 /*commcode*/);
     // APDU Command for ledger to let him know we're in a multi-send-command
@@ -116,7 +115,6 @@ export class DposLedger {
       // copy chunk data
       inputBuffer.copy(tempBuffer, 2, i * chunkDataSize, i * chunkDataSize + dataSize);
 
-      // console.log(`Sending[${i}] ${tempBuffer.toString('hex')}`);
       const [ledgerCRC16] = this.decomposeResponse(
         new Buffer(await this.comm.exchange(
           tempBuffer
@@ -129,7 +127,7 @@ export class DposLedger {
       );
       const crc    = crc16(inputBuffer.slice(0, i * chunkDataSize + dataSize));
       const receivedCRC = ledgerCRC16.readUInt16LE(0);
-      console.log('CRC', i, crc.toString(16), ledgerCRC16.toString('hex'), crc, receivedCRC);
+
 
       if (crc !== receivedCRC) {
         throw new Error('Something went wrong during CRC validation');
@@ -147,6 +145,7 @@ export class DposLedger {
     const totalElements        = resBuf.readInt8(0);
     const toRet: Array<Buffer> = [];
     let index                  = 1; // 1 read uint8_t
+
     for (let i = 0; i < totalElements; i++) {
       const elLength = resBuf.readInt16LE(index);
       index += 2;

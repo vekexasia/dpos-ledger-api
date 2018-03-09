@@ -340,4 +340,35 @@ describe('Integration tests', function () {
     });
   });
 
+  describe('getPubKey', () => {
+    it('should return always the same pubKey for same path', async () => {
+      expect(await dl.getPubKey(account)).to.be.eq(pubKey);
+    });
+    it('should change if account index is changed', async () => {
+      expect(await dl.getPubKey(account.account(2))).to.be.not.eq(pubKey)
+    });
+    it('should change if coin index is changed', async () => {
+      expect(await dl.getPubKey(account.coinIndex(2))).to.be.not.eq(pubKey)
+    });
+    it('should change if index is changed', async () => {
+      expect(await dl.getPubKey(account.index(2))).to.be.not.eq(pubKey)
+    });
+    it('should treat every value as different', async () => {
+      // reset;
+      account.account(0).coinIndex(0).index(0);
+      const zero = await dl.getPubKey(account);
+      account.account(1);
+      const acc = await dl.getPubKey(account);
+      account.account(0).coinIndex(1);
+      const coin = await dl.getPubKey(account);
+      account.coinIndex(0).index(1);
+      const idx = await dl.getPubKey(account);
+
+      expect(zero).to.not.be.oneOf([acc, coin, idx]);
+      expect(acc).to.not.be.oneOf([zero, coin, idx]);
+      expect(coin).to.not.be.oneOf([zero, acc, idx]);
+      expect(idx).to.not.be.oneOf([zero, acc, coin]);
+    });
+  });
+
 });
