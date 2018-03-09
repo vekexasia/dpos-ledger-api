@@ -19,7 +19,7 @@ describe('library', () => {
     instance['comm'] = {
       exchange   : commExchangeStub,
       close_async: closeAsyncStub
-    }
+    };
   });
 
   describe('exchange comm protocol', () => {
@@ -44,7 +44,7 @@ describe('library', () => {
       const crcBuff = new Buffer('0102000000', 'hex');
       for (let i = 0; i < chunks; i++) {
         crcBuff.writeUInt16LE(crc16(data.slice(0, (i + 1) * chunkSize)), 3);
-        console.log('toresp', i + 1, crcBuff.toString('hex'))
+        // console.log('toresp', i + 1, crcBuff.toString('hex'))
         commExchangeStub.onCall(i + 1).resolves(crcBuff.toString('hex'));
       }
 

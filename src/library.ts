@@ -1,12 +1,6 @@
-import { crc16ccitt as crc16 } from 'crc';
-import * as ledger from 'ledgerco';
+import * as crc16 from 'crc/lib/crc16_ccitt';
 import { LedgerAccount } from './account';
-
-interface ILedger {
-  close_async(): Promise<any>;
-
-  exchange(data: string, statuses: number[]): Promise<string>;
-}
+import { createAsync, ILedger } from './ledger';
 
 /**
  * Communication Protocol class
@@ -112,11 +106,16 @@ export class DposLedger {
       inputBuffer = hexData;
     }
 
+    console.log('Sending', inputBuffer.toString('hex'));
+
     // Send start comm packet
     const startCommBuffer = new Buffer('59aaaa', 'hex');
     startCommBuffer.writeUInt16BE(inputBuffer.length, 1);
 
+    console.log('sciao');
+
     await this.comm.exchange(startCommBuffer.toString('hex'), [0x9000]);
+    console.log('sciao');
 
     // Calculate number of chunks to send.
     const chunkDataSize = this.chunkSize;
@@ -162,7 +161,9 @@ export class DposLedger {
    * @returns {Promise<void>}
    */
   public async init() {
-    this.comm = await ledger.comm_node.create_async();
+    console.log('preinit');
+    this.comm = await createAsync();
+    console.log('postinit');
   }
 
   /**
@@ -205,6 +206,7 @@ export class DposLedger {
     const [signature] = args;
     return signature;
   }
+
   /**
    * Utility to ensure ledger comm. is initialized
    * @returns {Promise<void>}
@@ -221,9 +223,9 @@ export class DposLedger {
    * @returns {Array<Buffer>} decomposed response.
    */
   private decomposeResponse(resBuf: Buffer): Buffer[] {
-    const totalElements        = resBuf.readInt8(0);
+    const totalElements   = resBuf.readInt8(0);
     const toRet: Buffer[] = [];
-    let index                  = 1; // 1 read uint8_t
+    let index             = 1; // 1 read uint8_t
 
     for (let i = 0; i < totalElements; i++) {
       const elLength = resBuf.readInt16LE(index);

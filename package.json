@@ -7,7 +7,9 @@
     "tslint": "tslint --project .",
     "test": "echo \"Error: no test specified\" && exit 1",
     "test-unit": "mocha  --bail --require ts-node/register './tests/unit/**/*.spec.ts'",
-    "test-int": "mocha  --bail --require ts-node/register './tests/integration/**/*.spec.ts'"
+    "test-int": "mocha  --bail --require ts-node/register './tests/integration/**/*.spec.ts'",
+    "test-browser": "karma start karma.conf.js",
+    "package": "shx rm -rf dist; webpack &&  tsc --outDir dist/es5 --target es5 -d"
   },
   "author": "",
   "license": "MIT",
@@ -26,11 +28,23 @@
     "chai-as-promised": "^7.1.1",
     "dpos-offline": "^1.3.2",
     "is-empty": "^1.2.0",
+    "karma": "^2.0.0",
+    "karma-chai": "^0.1.0",
+    "karma-chrome-launcher": "^2.2.0",
+    "karma-firefox-launcher": "^1.0.1",
+    "karma-mocha": "^1.3.0",
+    "karma-sinon": "^1.0.5",
+    "karma-typescript": "^3.0.4",
+    "karma-webpack": "^2.0.4",
+    "libsodium-wrappers": "^0.7.3",
     "mocha": "^5.0.3",
+    "shx": "^0.2.2",
     "sinon": "^4.4.2",
-    "sodium": "^2.0.3",
+    "ts-loader": "^2.3.2",
     "ts-node": "^5.0.1",
     "tslint": "^5.9.1",
-    "typescript": "^2.7.2"
+    "typescript": "^2.7.2",
+    "uglifyjs-webpack-plugin": "^0.4.3",
+    "webpack": "^2.7.0"
   }
 }

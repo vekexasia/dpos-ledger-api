@@ -1,8 +1,7 @@
-import { api as sodium } from 'sodium';
+import * as sodium from 'libsodium-wrappers';
 import { expect } from 'chai';
 import { BaseTx, CreateSignatureTx, DelegateTx, GenericWallet, MultiSignatureTx, SendTx, VoteTx } from 'dpos-offline';
-import { DposLedger } from '../../src/library';
-import { LedgerAccount } from '../../src/account';
+import { DposLedger, LedgerAccount } from '../../src/';
 import * as empty from 'is-empty';
 
 describe('Integration tests', function () {
@@ -53,7 +52,7 @@ describe('Integration tests', function () {
   describe('ping', () => {
     it('should ping', async () => {
       await dl.ping();
-    })
+    });
   });
 
   describe('transactions', () => {
