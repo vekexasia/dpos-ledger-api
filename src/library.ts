@@ -1,5 +1,6 @@
 import * as ledger from 'ledgerco';
 import { LedgerAccount } from './account';
+import { crc16ccitt as crc16 } from 'crc';
 
 type Ledger = {
   close_async(): Promise<any>
@@ -63,6 +64,7 @@ export class DposLedger {
       throw new Error('Didnt receive PONG');
     }
   }
+
   /**
    * Raw exchange protocol handling
    * @param {string | Buffer} hexData
@@ -90,43 +92,53 @@ export class DposLedger {
       inputBuffer = hexData;
     }
 
+    // Send start comm packet
+    const startCommBuffer = new Buffer('59aaaa', 'hex');
+    startCommBuffer.writeUInt16BE(inputBuffer.length, 1);
+    // console.log('pre', startCommBuffer.toString('hex'));
+    await this.comm.exchange(startCommBuffer.toString('hex'), [0x9000]);
+    // console.log('post - antani', this.decomposeResponse(new Buffer(res, 'hex')).map((i) => i.toString('hex')));
+
     // Calculate number of chunks to send.
-    const chunkDataSize = 200;
-    const nChunks       = Math.ceil(hexData.length / chunkDataSize);
+    const chunkDataSize = 100;
+    const nChunks       = Math.ceil(inputBuffer.length / chunkDataSize);
+    // console.log(nChunks);
+    // console.log(inputBuffer.length);
+    // console.log(inputBuffer.toString('hex'));
 
     const tempBuffer = new Buffer(chunkDataSize + 1 /*howManyBytes This time*/ + 1 /*commcode*/);
     // APDU Command for ledger to let him know we're in a multi-send-command
     tempBuffer.writeUInt8(90, 0);
-    console.log(nChunks);
     for (let i = 0; i < nChunks; i++) {
       const dataSize = Math.min(inputBuffer.length, (i + 1) * chunkDataSize) - i * chunkDataSize;
       tempBuffer.writeUInt8(dataSize, 1);
 
       // copy chunk data
       inputBuffer.copy(tempBuffer, 2, i * chunkDataSize, i * chunkDataSize + dataSize);
-      const resBuf = new Buffer(await this.comm.exchange(
-        tempBuffer
-          .slice(0, dataSize + 2)
-          .toString('hex'),
-        [0x9000]
-        ),
-        'hex'
-      );
-      console.log(tempBuffer
-        .slice(0, dataSize + 2)
-        .toString('hex'));
-      console.log(this.decomposeResponse(resBuf).map((buf) => buf.toString('hex')));
-      // console.log('DataSize', dataSize.toString(16));
-      // if (resBuf.toString('hex') !== dataSize.toString(16)) {
-      //   // TODO: Assess feasibility of sha256
-      //   throw new Error(`Communication went wrong. Expected ${dataSize.toString(16)} - received ${resBuf.toString('hex')} - Size: ${dataSize}`)
-      // }
-    }
 
+      // console.log(`Sending[${i}] ${tempBuffer.toString('hex')}`);
+      const [ledgerCRC16] = this.decomposeResponse(
+        new Buffer(await this.comm.exchange(
+          tempBuffer
+            .slice(0, dataSize + 2)
+            .toString('hex'),
+          [0x9000]
+          ),
+          'hex'
+        )
+      );
+      const crc    = crc16(inputBuffer.slice(0, i * chunkDataSize + dataSize));
+      const receivedCRC = ledgerCRC16.readUInt16LE(0);
+      console.log('CRC', i, crc.toString(16), ledgerCRC16.toString('hex'), crc, receivedCRC);
+
+      if (crc !== receivedCRC) {
+        throw new Error('Something went wrong during CRC validation');
+      }
+
+    }
     // Close comm flow.
     const closingBuffer = new Buffer(1);
     closingBuffer.writeUInt8(91, 0);
-    console.log('pre');
     const resBuf = new Buffer(await this.comm.exchange(closingBuffer.toString('hex'), [0x9000]), 'hex');
     return this.decomposeResponse(resBuf);
   }

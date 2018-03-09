@@ -12,6 +12,7 @@
   "license": "MIT",
   "dependencies": {
     "bip32-path": "^0.4.2",
+    "crc": "^3.5.0",
     "ledgerco": "^1.2.1"
   },
   "devDependencies": {
@@ -21,6 +22,7 @@
     "@types/sinon": "^4.3.0",
     "chai": "^4.1.2",
     "dpos-offline": "^1.3.2",
+    "is-empty": "^1.2.0",
     "mocha": "^5.0.3",
     "sinon": "^4.4.2",
     "sodium": "^2.0.3",

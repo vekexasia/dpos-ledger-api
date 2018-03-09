@@ -20,13 +20,12 @@ describe('library', () => {
 
   describe('exchange', () => {
     it('should send one chunk of data and call .comm.exchange twice with proper data', async () => {
-      commExchangeStub.resolves('aa');
+      commExchangeStub.resolves('01020038ed');
       await instance.exchange('abcdef');
-      expect(commExchangeStub.callCount).is.eq(2);
+      expect(commExchangeStub.callCount).is.eq(3);
       expect(commExchangeStub.firstCall.args[0]).to.be.eq(
-        (90).toString(16) +
-        '03' +
-        'abcdef'
+        '59'+ // init comm
+        '0003' // buffer length
       );
 
       // Second call
