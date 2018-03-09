@@ -12,7 +12,9 @@ module.exports = function(config) {
     customLaunchers: {
       Chrome_travis_ci: {
         base: 'Chrome',
-        flags: ['--no-sandbox']
+        flags: ['--no-sandbox',
+        '--disable-web-security',
+        ]
       }
     },
     // base path that will be used to resolve all patterns (eg. files, exclude)
@@ -59,6 +61,7 @@ module.exports = function(config) {
     // possible values: config.LOG_DISABLE || config.LOG_ERROR || config.LOG_WARN || config.LOG_INFO || config.LOG_DEBUG
     logLevel: config.LOG_INFO,
 
+    hostname: 'localhost',
 
     // enable / disable watching file and executing tests whenever any file changes
     autoWatch: false,
@@ -66,7 +69,7 @@ module.exports = function(config) {
 
     // start these browsers
     // available browser launchers: https://npmjs.org/browse/keyword/karma-launcher
-    browsers: ['Chrome'],
+    browsers: ['Chrome_travis_ci'],
 
 
     // Continuous Integration mode
@@ -77,8 +80,10 @@ module.exports = function(config) {
     // how many browser should be started simultaneous
     concurrency: Infinity,
     httpsServerConfig: {
-      key: fs.readFileSync('./tests/assets/privateKey.key', 'utf8'),
-      cert: fs.readFileSync('./tests/assets/certificate.crt', 'utf8')
+      key: fs.readFileSync('./tests/assets/key.pem'),
+      cert: fs.readFileSync('./tests/assets/cert.pem'),
+      requestCert: false,
+      rejectUnauthorized: false
     },
     protocol: 'https:',
   };
