@@ -106,39 +106,30 @@ export class DposLedger {
       inputBuffer = hexData;
     }
 
-    console.log('Sending', inputBuffer.toString('hex'));
-
     // Send start comm packet
-    const startCommBuffer = new Buffer('59aaaa', 'hex');
-    startCommBuffer.writeUInt16BE(inputBuffer.length, 1);
+    const startCommBuffer = Buffer.alloc(2);
+    startCommBuffer.writeUInt16BE(inputBuffer.length, 0);
 
-    console.log('sciao');
-
-    await this.comm.exchange(startCommBuffer.toString('hex'), [0x9000]);
-    console.log('sciao');
+    await this.comm.send(0xe0, 0x59, 0, 0, startCommBuffer);
 
     // Calculate number of chunks to send.
     const chunkDataSize = this.chunkSize;
     const nChunks       = Math.ceil(inputBuffer.length / chunkDataSize);
 
-    const tempBuffer = new Buffer(chunkDataSize + 1 /*howManyBytes This time*/ + 1 /*commcode*/);
     // APDU Command for ledger to let him know we're in a multi-send-command
-    tempBuffer.writeUInt8(90, 0);
     for (let i = 0; i < nChunks; i++) {
       const dataSize = Math.min(inputBuffer.length, (i + 1) * chunkDataSize) - i * chunkDataSize;
-      tempBuffer.writeUInt8(dataSize, 1);
 
       // copy chunk data
-      inputBuffer.copy(tempBuffer, 2, i * chunkDataSize, i * chunkDataSize + dataSize);
+      const dataBuffer = inputBuffer.slice(i * chunkDataSize, i * chunkDataSize + dataSize);
 
       const [ledgerCRC16] = this.decomposeResponse(
-        new Buffer(await this.comm.exchange(
-          tempBuffer
-            .slice(0, dataSize + 2)
-            .toString('hex'),
-          [0x9000]
-          ),
-          'hex'
+        await this.comm.send(
+          0xe0,
+          90,
+          0,
+          0,
+          dataBuffer
         )
       );
       const crc           = crc16(inputBuffer.slice(0, i * chunkDataSize + dataSize));
@@ -152,7 +143,7 @@ export class DposLedger {
     // Close comm flow.
     const closingBuffer = new Buffer(1);
     closingBuffer.writeUInt8(91, 0);
-    const resBuf = new Buffer(await this.comm.exchange(closingBuffer.toString('hex'), [0x9000]), 'hex');
+    const resBuf = await this.comm.send(0xe0, 91, 0, 0);
     return this.decomposeResponse(resBuf);
   }
 
@@ -171,7 +162,7 @@ export class DposLedger {
    * @returns {Promise<any>}
    */
   public tearDown() {
-    return this.comm.close_async();
+    return this.comm.close();
   }
 
   /**

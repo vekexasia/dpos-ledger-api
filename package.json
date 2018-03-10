@@ -14,9 +14,11 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@ledgerhq/hw-transport-node-hid": "^4.6.0",
+    "@ledgerhq/hw-transport-u2f": "^4.6.0",
     "bip32-path": "^0.4.2",
-    "crc": "^3.5.0",
-    "ledgerco": "^1.2.1"
+    "browser-or-node": "^1.0.2",
+    "crc": "^3.5.0"
   },
   "devDependencies": {
     "@types/chai": "^4.1.2",

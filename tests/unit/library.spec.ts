@@ -10,15 +10,15 @@ chai.use(chaiAsPromised);
 
 describe('library', () => {
   let instance: DposLedger;
-  let commExchangeStub: SinonStub;
-  let closeAsyncStub: SinonStub;
+  let commSendStub: SinonStub;
+  let closeStub: SinonStub;
   beforeEach(() => {
     instance         = new DposLedger();
-    commExchangeStub = sinon.stub();
-    closeAsyncStub   = sinon.stub();
+    commSendStub = sinon.stub();
+    closeStub   = sinon.stub();
     instance['comm'] = {
-      exchange   : commExchangeStub,
-      close_async: closeAsyncStub
+      send   : commSendStub,
+      close: closeStub
     };
   });
 
@@ -36,7 +36,6 @@ describe('library', () => {
               return outBuf
             }))
         )
-        .toString('hex')
     }
 
     function buildCommProtocol(data: Buffer, finalResp: Buffer[] = [new Buffer('aa', 'hex')], chunkSize: number = 240) {
@@ -44,13 +43,12 @@ describe('library', () => {
       const crcBuff = new Buffer('0102000000', 'hex');
       for (let i = 0; i < chunks; i++) {
         crcBuff.writeUInt16LE(crc16(data.slice(0, (i + 1) * chunkSize)), 3);
-        // console.log('toresp', i + 1, crcBuff.toString('hex'))
-        commExchangeStub.onCall(i + 1).resolves(crcBuff.toString('hex'));
+        commSendStub.onCall(i + 1).resolves(new Buffer(crcBuff));
       }
 
       // Final response result
       const finalResultResponse = buildResponseFromLedger(finalResp);
-      commExchangeStub.onCall(chunks + 1)
+      commSendStub.onCall(chunks + 1)
         .resolves(finalResultResponse)
     }
 
@@ -60,22 +58,19 @@ describe('library', () => {
           new Buffer('abcdef', 'hex')
         );
         await instance.exchange('abcdef');
-        expect(commExchangeStub.callCount).is.eq(3);
-        expect(commExchangeStub.firstCall.args[0]).to.be.eq(
-          '59' + // init comm
-          '0003' // buffer length
+        expect(commSendStub.callCount).is.eq(3);
+        expect(commSendStub.firstCall.args).to.be.deep.eq(
+          [0xe0, 0x59, 0, 0, new Buffer('0003', 'hex')]
         );
 
         // Second call - Communication continuation
-        expect(commExchangeStub.secondCall.args[0]).to.be.eq(
-          '5a' + // communication continuation
-          '03' + // 'number of bytes',
-          'abcdef'
+        expect(commSendStub.secondCall.args).to.be.deep.eq(
+          [0xe0, 90, 0, 0, new Buffer('abcdef', 'hex')]
         );
 
         // Third call - Communication closure.
-        expect(commExchangeStub.thirdCall.args[0]).to.be.eq(
-          '5b'
+        expect(commSendStub.thirdCall.args).to.be.deep.eq(
+          [0xe0, 91, 0, 0]
         );
       });
 
@@ -87,30 +82,29 @@ describe('library', () => {
         buildCommProtocol(buffer);
         await instance.exchange(buffer);
 
-        expect(commExchangeStub.callCount).to.be.gt(2);
+        expect(commSendStub.callCount).to.be.gt(2);
         let read = 0;
-        for (let i = 0; i < commExchangeStub.callCount - 2; i++) {
-          const call = commExchangeStub.getCall(i + 1);
-          expect(call.args[0].substr(0, 2)).to.be.eq((90).toString(16));
-          const sent     = Number.parseInt(call.args[0].substr(2, 2), 16);
-          const dataSent = buffer.toString('hex', read, sent + read);
-          expect(call.args[0].substr(4, sent * 2)).to.be.eq(dataSent);
+        for (let i = 0; i < commSendStub.callCount - 2; i++) {
+          const call = commSendStub.getCall(i + 1);
+
+          const sent     = call.args[4].length;
+
+          expect(call.args[4]).to.be.deep.eq(new Buffer(buffer.slice(read, sent+read)));
           read += sent;
         }
         expect(read).to.be.eq(buffer.length);
-        expect(commExchangeStub.lastCall.args[0]).to.be.eq((91).toString(16));
       });
 
       it('should treat string param as hexEncoded string', async () => {
         buildCommProtocol(new Buffer('aabb', 'hex'));
         await instance.exchange('aabb');
-        expect(commExchangeStub.secondCall.args[0]).to.be.deep.eq('5a02aabb');
+        expect(commSendStub.secondCall.args[4]).to.be.deep.eq(new Buffer('aabb', 'hex'));
       });
       it('should treat array param as mixed string, buffer, number and reconstruct it', async () => {
         const buf = new Buffer('0001', 'hex');
         buildCommProtocol(new Buffer('aabb0001', 'hex'));
         await instance.exchange(['aa', 187 /*bb*/, buf]);
-        expect(commExchangeStub.secondCall.args[0]).to.be.deep.eq('5a04aabb0001');
+        expect(commSendStub.secondCall.args[4]).to.be.deep.eq(new Buffer('aabb0001', 'hex'));
       });
       it('should work even for 1 chunksize with proper data sent and # of comm with ledger', async () => {
         instance['chunkSize'] = 1;
@@ -121,13 +115,13 @@ describe('library', () => {
         buildCommProtocol(buffer, [new Buffer('aa', 'hex')], 1);
         await instance.exchange(buffer);
 
-        expect(commExchangeStub.callCount).eq(buffer.length + 2);
+        expect(commSendStub.callCount).eq(buffer.length + 2);
       });
     });
     it('should fail if one of the CRC fails', () => {
       let buffer = new Buffer('aabb', 'hex');
       buildCommProtocol(buffer);
-      commExchangeStub.onCall(1).resolves('0102000000');
+      commSendStub.onCall(1).resolves(new Buffer('0102000000', 'hex'));
       return expect(instance.exchange(buffer)).to.be.rejectedWith('Something went wrong during CRC validation');
     });
   });

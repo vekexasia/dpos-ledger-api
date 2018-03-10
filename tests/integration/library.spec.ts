@@ -5,7 +5,7 @@ import { DposLedger, LedgerAccount } from '../../src/';
 import * as empty from 'is-empty';
 
 describe('Integration tests', function () {
-  this.timeout(15000);
+  this.timeout(150222200);
   let dl: DposLedger;
   let account: LedgerAccount;
   let pubKey: string;
