@@ -1,24 +1,28 @@
 import * as crc16 from 'crc/lib/crc16_ccitt';
 import { LedgerAccount } from './account';
-import { createAsync, ILedger } from './ledger';
+import { ITransport } from './ledger';
 
 /**
  * Communication Protocol class
  */
 export class DposLedger {
-  private comm: ILedger = null;
 
   /**
+   * @param {ITransport} transport transport class.
    * @param {number} chunkSize lets you specify the chunkSize for each communication
    * DO Not change if you don't know what you're doing.
    */
-  constructor(private chunkSize: number = 240) {
+  constructor(private transport: ITransport,  private chunkSize: number = 240) {
     if (chunkSize > 240) {
       throw new Error('Chunk Size cannot exceed 240');
     }
     if (chunkSize < 1) {
       throw new Error('Chunk Size cannot go below 1');
     }
+    if (transport === null || typeof(transport) === 'undefined') {
+      throw new Error('Transport cannot be empty');
+    }
+    transport.setScrambleKey('vekexasia');
   }
 
   /**
@@ -85,8 +89,6 @@ export class DposLedger {
    * @returns {Promise<Buffer[]>} Raw response buffers.
    */
   public async exchange(hexData: string | Buffer | Array<(string | Buffer | number)>): Promise<Buffer[]> {
-    await this.ensureInitialized();
-
     let inputBuffer: Buffer;
     if (Array.isArray(hexData)) {
       inputBuffer = Buffer.concat(hexData.map((item) => {
@@ -110,7 +112,7 @@ export class DposLedger {
     const startCommBuffer = Buffer.alloc(2);
     startCommBuffer.writeUInt16BE(inputBuffer.length, 0);
 
-    await this.comm.send(0xe0, 0x59, 0, 0, startCommBuffer);
+    await this.transport.send(0xe0, 89, 0, 0, startCommBuffer);
 
     // Calculate number of chunks to send.
     const chunkDataSize = this.chunkSize;
@@ -124,7 +126,7 @@ export class DposLedger {
       const dataBuffer = inputBuffer.slice(i * chunkDataSize, i * chunkDataSize + dataSize);
 
       const [ledgerCRC16] = this.decomposeResponse(
-        await this.comm.send(
+        await this.transport.send(
           0xe0,
           90,
           0,
@@ -143,26 +145,8 @@ export class DposLedger {
     // Close comm flow.
     const closingBuffer = new Buffer(1);
     closingBuffer.writeUInt8(91, 0);
-    const resBuf = await this.comm.send(0xe0, 91, 0, 0);
+    const resBuf = await this.transport.send(0xe0, 91, 0, 0);
     return this.decomposeResponse(resBuf);
-  }
-
-  /**
-   * Public utility to initialize the ledger.
-   * @returns {Promise<void>}
-   */
-  public async init() {
-    console.log('preinit');
-    this.comm = await createAsync();
-    console.log('postinit');
-  }
-
-  /**
-   * Closes the comm channel.
-   * @returns {Promise<any>}
-   */
-  public tearDown() {
-    return this.comm.close();
   }
 
   /**
@@ -196,16 +180,6 @@ export class DposLedger {
     ]);
     const [signature] = args;
     return signature;
-  }
-
-  /**
-   * Utility to ensure ledger comm. is initialized
-   * @returns {Promise<void>}
-   */
-  private async ensureInitialized() {
-    if (this.comm === null) {
-      await this.init();
-    }
   }
 
   /**

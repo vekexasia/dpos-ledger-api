@@ -3,17 +3,22 @@ import { expect } from 'chai';
 import { BaseTx, CreateSignatureTx, DelegateTx, GenericWallet, MultiSignatureTx, SendTx, VoteTx } from 'dpos-offline';
 import { DposLedger, LedgerAccount } from '../../src/';
 import * as empty from 'is-empty';
+import TransportU2F from '@ledgerhq/hw-transport-u2f'
+import TransportNodeHid from '@ledgerhq/hw-transport-node-hid'
+import { isBrowser, isNode } from 'browser-or-node';
+import { ITransport } from '../../src/ledger';
 
 describe('Integration tests', function () {
   this.timeout(150222200);
   let dl: DposLedger;
   let account: LedgerAccount;
   let pubKey: string;
-  before(() => {
-    dl = new DposLedger();
-    return dl.init();
+  let transport: ITransport;
+  before(async () => {
+    transport = await (isBrowser ? TransportU2F.create() : TransportNodeHid.create());
+    dl        = new DposLedger(transport);
   });
-  after(() => dl.tearDown());
+  after(() => transport.close());
 
   beforeEach(async () => {
     account = new LedgerAccount();
@@ -147,7 +152,7 @@ describe('Integration tests', function () {
         await signAndVerify(tx);
       });
       it('vote with requesterPublicKey, signature and secondSignature (multi-sig-wallet)', async () => {
-        const tx = new VoteTx({
+        const tx           = new VoteTx({
           votes: [
             '+a',
             '-b'
@@ -159,7 +164,7 @@ describe('Integration tests', function () {
           .set('recipientId', '123456781230L')
           .set('senderPublicKey', pubKey)
           .set('requesterPublicKey', pubKey);
-        tx.signature = 'e96c66573a67214867025fd478cadd363c0d558ef6d3e071dba4abfcb6cd01abfb78814544137191ac70fe4e44dcf922d638c7d963ce08ccd1acdc5f9113cf01';
+        tx.signature       = 'e96c66573a67214867025fd478cadd363c0d558ef6d3e071dba4abfcb6cd01abfb78814544137191ac70fe4e44dcf922d638c7d963ce08ccd1acdc5f9113cf01';
         tx.secondSignature = 'e96c66573a67214867025fd478cadd363c0d558ef6d3e071dba4abfcb6cd01abfb78814544137191ac70fe4e44dcf922d638c7d963ce08ccd1acdc5f9113cf01';
         await signAndVerify(tx);
       });
@@ -197,7 +202,7 @@ describe('Integration tests', function () {
         await signAndVerify(tx);
       });
       it('reg delegate with requesterpublickey, sign and secondSign (multisig-account)', async () => {
-        const tx = new DelegateTx({
+        const tx           = new DelegateTx({
           delegate: {
             username : 'multisig',
             publicKey: '01389197bbaf1afb0acd47bbfeabb34aca80fb372a8f694a1c0716b3398db7aa'
@@ -209,13 +214,13 @@ describe('Integration tests', function () {
           .set('recipientId', '123456781230L')
           .set('senderPublicKey', pubKey)
           .set('requesterPublicKey', pubKey);
-        tx.signature = 'e96c66573a67214867025fd478cadd363c0d558ef6d3e071dba4abfcb6cd01abfb78814544137191ac70fe4e44dcf922d638c7d963ce08ccd1acdc5f9113cf01';
+        tx.signature       = 'e96c66573a67214867025fd478cadd363c0d558ef6d3e071dba4abfcb6cd01abfb78814544137191ac70fe4e44dcf922d638c7d963ce08ccd1acdc5f9113cf01';
         tx.secondSignature = 'e96c66573a67214867025fd478cadd363c0d558ef6d3e071dba4abfcb6cd01abfb78814544137191ac70fe4e44dcf922d638c7d963ce08ccd1acdc5f9113cf01';
 
         await signAndVerify(tx);
       });
       it('reg delegate with fancy name', async () => {
-        const tx = new DelegateTx({
+        const tx           = new DelegateTx({
           delegate: {
             username : '0123456789veke!@$&_.',
             publicKey: '01389197bbaf1afb0acd47bbfeabb34aca80fb372a8f694a1c0716b3398db7aa'
@@ -227,7 +232,7 @@ describe('Integration tests', function () {
           .set('recipientId', '123456781230L')
           .set('senderPublicKey', pubKey)
           .set('requesterPublicKey', pubKey);
-        tx.signature = 'e96c66573a67214867025fd478cadd363c0d558ef6d3e071dba4abfcb6cd01abfb78814544137191ac70fe4e44dcf922d638c7d963ce08ccd1acdc5f9113cf01';
+        tx.signature       = 'e96c66573a67214867025fd478cadd363c0d558ef6d3e071dba4abfcb6cd01abfb78814544137191ac70fe4e44dcf922d638c7d963ce08ccd1acdc5f9113cf01';
         tx.secondSignature = 'e96c66573a67214867025fd478cadd363c0d558ef6d3e071dba4abfcb6cd01abfb78814544137191ac70fe4e44dcf922d638c7d963ce08ccd1acdc5f9113cf01';
 
         await signAndVerify(tx);
@@ -263,7 +268,7 @@ describe('Integration tests', function () {
           .set('requesterPublicKey', pubKey)
           .set('senderPublicKey', pubKey);
 
-        tx.signature = 'e96c66573a67214867025fd478cadd363c0d558ef6d3e071dba4abfcb6cd01abfb78814544137191ac70fe4e44dcf922d638c7d963ce08ccd1acdc5f9113cf01';
+        tx.signature       = 'e96c66573a67214867025fd478cadd363c0d558ef6d3e071dba4abfcb6cd01abfb78814544137191ac70fe4e44dcf922d638c7d963ce08ccd1acdc5f9113cf01';
         tx.secondSignature = 'e96c66573a67214867025fd478cadd363c0d558ef6d3e071dba4abfcb6cd01abfb78814544137191ac70fe4e44dcf922d638c7d963ce08ccd1acdc5f9113cf01';
         await signAndVerify(tx);
       });
@@ -273,8 +278,8 @@ describe('Integration tests', function () {
       it('simple multisig - min 3 - lifetime 24', async () => {
         const tx = new MultiSignatureTx({
           multisignature: {
-            min: 3,
-            lifetime: 24,
+            min      : 3,
+            lifetime : 24,
             keysgroup: [pubKey, pubKey, pubKey, pubKey]
           }
         })
@@ -288,8 +293,8 @@ describe('Integration tests', function () {
       it('simple multisig - min 3 - lifetime 24 with sign, secondsign and requester', async () => {
         const tx = new MultiSignatureTx({
           multisignature: {
-            min: 3,
-            lifetime: 24,
+            min      : 3,
+            lifetime : 24,
             keysgroup: [pubKey, pubKey, pubKey, pubKey]
           }
         })
@@ -300,7 +305,7 @@ describe('Integration tests', function () {
           .set('requesterPublicKey', pubKey)
           .set('senderPublicKey', pubKey);
 
-        tx.signature = 'e96c66573a67214867025fd478cadd363c0d558ef6d3e071dba4abfcb6cd01abfb78814544137191ac70fe4e44dcf922d638c7d963ce08ccd1acdc5f9113cf01';
+        tx.signature       = 'e96c66573a67214867025fd478cadd363c0d558ef6d3e071dba4abfcb6cd01abfb78814544137191ac70fe4e44dcf922d638c7d963ce08ccd1acdc5f9113cf01';
         tx.secondSignature = 'e96c66573a67214867025fd478cadd363c0d558ef6d3e071dba4abfcb6cd01abfb78814544137191ac70fe4e44dcf922d638c7d963ce08ccd1acdc5f9113cf01';
 
         await signAndVerify(tx);

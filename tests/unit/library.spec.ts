@@ -6,20 +6,24 @@ import { DposLedger } from '../../src/library';
 import { LedgerAccount } from '../../src/account';
 import { crc16ccitt as crc16 } from 'crc';
 import * as chaiAsPromised from 'chai-as-promised';
+
 chai.use(chaiAsPromised);
 
 describe('library', () => {
   let instance: DposLedger;
   let commSendStub: SinonStub;
   let closeStub: SinonStub;
+  let setScrambleKeyStub: SinonStub;
   beforeEach(() => {
-    instance         = new DposLedger();
-    commSendStub = sinon.stub();
-    closeStub   = sinon.stub();
-    instance['comm'] = {
-      send   : commSendStub,
-      close: closeStub
+    commSendStub       = sinon.stub();
+    closeStub          = sinon.stub();
+    setScrambleKeyStub = sinon.stub();
+    const transport    = {
+      send          : commSendStub,
+      close         : closeStub,
+      setScrambleKey: setScrambleKeyStub
     };
+    instance           = new DposLedger(transport);
   });
 
   describe('exchange comm protocol', () => {
@@ -87,9 +91,9 @@ describe('library', () => {
         for (let i = 0; i < commSendStub.callCount - 2; i++) {
           const call = commSendStub.getCall(i + 1);
 
-          const sent     = call.args[4].length;
+          const sent = call.args[4].length;
 
-          expect(call.args[4]).to.be.deep.eq(new Buffer(buffer.slice(read, sent+read)));
+          expect(call.args[4]).to.be.deep.eq(new Buffer(buffer.slice(read, sent + read)));
           read += sent;
         }
         expect(read).to.be.eq(buffer.length);

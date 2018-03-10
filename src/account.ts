@@ -3,11 +3,16 @@ import * as bip32path from 'bip32-path';
 /**
  * Class to specify An account used to query the ledger.
  */
+export enum SupportedCoin {
+  LISK = 134,
+  RISE = 1120,
+}
+
 export class LedgerAccount {
   // tslint:disable variable-name
   private _account: number   = 0;
   private _index: number     = 1;
-  private _coinIndex: number = 134; // LISK
+  private _coinIndex: SupportedCoin = SupportedCoin.LISK; // LISK
   // tslint:enable variable-name
   /**
    * Specify the index (last path in bip32)
@@ -41,7 +46,7 @@ export class LedgerAccount {
    * @param {number} newIndex
    * @returns {this}
    */
-  public coinIndex(newIndex: number): this {
+  public coinIndex(newIndex: SupportedCoin): this {
     if (!Number.isInteger(newIndex)) {
       throw new Error('Coin index must be an integer');
     }
@@ -54,7 +59,7 @@ export class LedgerAccount {
    * @returns {Buffer} defines the path in buffer form.
    */
   public derivePath(): Buffer {
-    const pathArray: number[] = bip32path.fromString(`41'/${this._coinIndex}'/0'/${this._account}'/${this._index}'`)
+    const pathArray: number[] = bip32path.fromString(`44'/${this._coinIndex}'/0'/${this._account}'/${this._index}'`)
       .toPathArray();
 
     const retBuf = Buffer.alloc(pathArray.length * 4);
