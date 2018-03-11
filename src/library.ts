@@ -30,18 +30,20 @@ export class DposLedger {
    * @param {LedgerAccount} account
    * @returns {Promise<string>}
    */
-  public async getPubKey(account: LedgerAccount): Promise<string> {
+  public async getPubKey(account: LedgerAccount): Promise<{publicKey: string, address: string}> {
     const pathBuf = account.derivePath();
     const resp    = await this.exchange([
-      'e0',
       '04',
       (pathBuf.length / 4),
       pathBuf,
     ]);
 
-    const [publicKey] = resp;
+    const [publicKey, address] = resp;
 
-    return publicKey.toString('hex');
+    return {
+      publicKey: publicKey.toString('hex'),
+      address: address.toString('utf8')
+    };
   }
 
   /**
@@ -76,8 +78,17 @@ export class DposLedger {
    * Simple ping utility. It won't throw if ping suceeded.
    * @returns {Promise<void>}
    */
+  public async version(): Promise<string> {
+    const [res] = await this.exchange('09');
+    return res.toString('utf8');
+  }
+
+  /**
+   * Simple ping utility. It won't throw if ping suceeded.
+   * @returns {Promise<void>}
+   */
   public async ping(): Promise<void> {
-    const [res] = await this.exchange('e008');
+    const [res] = await this.exchange('08');
     if (res.toString('utf8') !== 'PONG') {
       throw new Error('Didnt receive PONG');
     }
@@ -118,7 +129,6 @@ export class DposLedger {
     const chunkDataSize = this.chunkSize;
     const nChunks       = Math.ceil(inputBuffer.length / chunkDataSize);
 
-    // APDU Command for ledger to let him know we're in a multi-send-command
     for (let i = 0; i < nChunks; i++) {
       const dataSize = Math.min(inputBuffer.length, (i + 1) * chunkDataSize) - i * chunkDataSize;
 
@@ -143,8 +153,6 @@ export class DposLedger {
 
     }
     // Close comm flow.
-    const closingBuffer = new Buffer(1);
-    closingBuffer.writeUInt8(91, 0);
     const resBuf = await this.transport.send(0xe0, 91, 0, 0);
     return this.decomposeResponse(resBuf);
   }
@@ -167,7 +175,6 @@ export class DposLedger {
     const buffLength = new Buffer(2);
     buffLength.writeUInt16BE(buff.length, 0);
     const args        = await this.exchange([
-      'e0',
       signType, // sign
       // Bip32
       (pathBuf.length / 4),

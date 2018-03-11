@@ -25,36 +25,37 @@ describe('library', () => {
     };
     instance           = new DposLedger(transport);
   });
+  function buildCommProtocol(data: Buffer, finalResp: Buffer[] = [new Buffer('aa', 'hex')], chunkSize: number = 240) {
+    const chunks  = Math.ceil(data.length / chunkSize);
+    const crcBuff = new Buffer('0102000000', 'hex');
+    for (let i = 0; i < chunks; i++) {
+      crcBuff.writeUInt16LE(crc16(data.slice(0, (i + 1) * chunkSize)), 3);
+      commSendStub.onCall(i + 1).resolves(new Buffer(crcBuff));
+    }
 
+    // Final response result
+    const finalResultResponse = buildResponseFromLedger(finalResp);
+    commSendStub.onCall(chunks + 1)
+      .resolves(finalResultResponse)
+  }
+  function buildResponseFromLedger(resps: Buffer[]) {
+    return Buffer
+      .concat(
+        [
+          new Buffer([resps.length]),
+        ].concat(
+          resps.map((b) => {
+            const outBuf = Buffer.alloc(2 + b.length);
+            outBuf.writeUInt16LE(b.length, 0);
+            b.copy(outBuf, 2, 0, b.length);
+            return outBuf
+          }))
+      )
+  }
   describe('exchange comm protocol', () => {
-    function buildResponseFromLedger(resps: Buffer[]) {
-      return Buffer
-        .concat(
-          [
-            new Buffer([resps.length]),
-          ].concat(
-            resps.map((b) => {
-              const outBuf = Buffer.alloc(2 + b.length);
-              outBuf.writeUInt16LE(b.length, 0);
-              b.copy(outBuf, 2, 0, b.length);
-              return outBuf
-            }))
-        )
-    }
 
-    function buildCommProtocol(data: Buffer, finalResp: Buffer[] = [new Buffer('aa', 'hex')], chunkSize: number = 240) {
-      const chunks  = Math.ceil(data.length / chunkSize);
-      const crcBuff = new Buffer('0102000000', 'hex');
-      for (let i = 0; i < chunks; i++) {
-        crcBuff.writeUInt16LE(crc16(data.slice(0, (i + 1) * chunkSize)), 3);
-        commSendStub.onCall(i + 1).resolves(new Buffer(crcBuff));
-      }
 
-      // Final response result
-      const finalResultResponse = buildResponseFromLedger(finalResp);
-      commSendStub.onCall(chunks + 1)
-        .resolves(finalResultResponse)
-    }
+
 
     describe('all good', () => {
       it('should send one chunk of data and call .comm.exchange twice with proper data', async () => {
@@ -138,7 +139,7 @@ describe('library', () => {
       account              = new LedgerAccount();
       derivePathSpy        = sinon.spy(account, 'derivePath');
       instanceExchangeStub = sinon.stub(instance, 'exchange');
-      instanceExchangeStub.resolves([new Buffer('aa', 'hex')]);
+      instanceExchangeStub.resolves([new Buffer('aa', 'hex'), new Buffer('123','utf8')]);
     });
 
     it('should call account derivePath', async () => {
@@ -149,11 +150,15 @@ describe('library', () => {
       await instance.getPubKey(account);
       expect(instanceExchangeStub.calledOnce).is.true;
       expect(instanceExchangeStub.firstCall.args[0]).to.be.deep.eq([
-        'e0',
         '04',
         account.derivePath().length / 4,
         account.derivePath()
       ]);
+    });
+    it('should return publicKey and address', async () => {
+      const {publicKey, address} = await instance.getPubKey(account);
+      expect(publicKey).to.be.eq('aa');
+      expect(address).to.be.eq('123');
     });
   });
 
@@ -175,17 +180,17 @@ describe('library', () => {
     it('should call instance.exchange with signType 05', async () => {
       await instance.signTX(account, Buffer.alloc(2));
       expect(instanceExchangeStub.calledOnce).is.true;
-      expect(instanceExchangeStub.firstCall.args[0][1]).to.be.deep.eq('05');
+      expect(instanceExchangeStub.firstCall.args[0][0]).to.be.deep.eq('05');
     });
     it('should default hasRequesterPKey to false', async () => {
       await instance.signTX(account, Buffer.alloc(2));
       expect(instanceExchangeStub.calledOnce).is.true;
-      expect(instanceExchangeStub.firstCall.args[0][5]).to.be.deep.eq('00');
+      expect(instanceExchangeStub.firstCall.args[0][4]).to.be.deep.eq('00');
     });
     it('should allow hasRequesterPKey to true', async () => {
       await instance.signTX(account, Buffer.alloc(2), true);
       expect(instanceExchangeStub.calledOnce).is.true;
-      expect(instanceExchangeStub.firstCall.args[0][5]).to.be.deep.eq('01');
+      expect(instanceExchangeStub.firstCall.args[0][4]).to.be.deep.eq('01');
     });
     it('should propagate correct data derived from inputbuffer and account', async () => {
       const buff = Buffer.alloc(2);
@@ -194,7 +199,6 @@ describe('library', () => {
       const lengthBuff = Buffer.alloc(2);
       lengthBuff.writeUInt16BE(2, 0);
       expect(instanceExchangeStub.firstCall.args[0]).to.be.deep.eq([
-        'e0', //cmd,
         '05', // sign type
         account.derivePath().length / 4,
         account.derivePath(),

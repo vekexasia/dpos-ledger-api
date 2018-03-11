@@ -1,7 +1,16 @@
 import * as sodium from 'libsodium-wrappers';
 import { expect } from 'chai';
-import { BaseTx, CreateSignatureTx, DelegateTx, GenericWallet, MultiSignatureTx, SendTx, VoteTx } from 'dpos-offline';
-import { DposLedger, LedgerAccount } from '../../src/';
+import {
+  BaseTx,
+  CreateSignatureTx,
+  DelegateTx,
+  dposOffline,
+  GenericWallet,
+  MultiSignatureTx,
+  SendTx,
+  VoteTx
+} from 'dpos-offline';
+import { DposLedger, LedgerAccount, SupportedCoin } from '../../src/';
 import * as empty from 'is-empty';
 import TransportU2F from '@ledgerhq/hw-transport-u2f'
 import TransportNodeHid from '@ledgerhq/hw-transport-node-hid'
@@ -21,9 +30,10 @@ describe('Integration tests', function () {
   after(() => transport.close());
 
   beforeEach(async () => {
-    account = new LedgerAccount();
-    pubKey  = await dl.getPubKey(account);
-    expect(pubKey).to.match(/^[a-z0-9]{64}$/);
+    account   = new LedgerAccount();
+    const res = await dl.getPubKey(account);
+    expect(res.publicKey).to.match(/^[a-z0-9]{64}$/);
+    pubKey = res.publicKey;
   });
 
   describe('Messages', () => {
@@ -346,33 +356,55 @@ describe('Integration tests', function () {
 
   describe('getPubKey', () => {
     it('should return always the same pubKey for same path', async () => {
-      expect(await dl.getPubKey(account)).to.be.eq(pubKey);
+      const target = await dl.getPubKey(account);
+      expect(target.publicKey).to.be.eq(pubKey);
     });
     it('should change if account index is changed', async () => {
-      expect(await dl.getPubKey(account.account(2))).to.be.not.eq(pubKey)
+      const target = await dl.getPubKey(account.account(2));
+      expect(target.publicKey).to.be.not.eq(pubKey)
     });
     it('should change if coin index is changed', async () => {
-      expect(await dl.getPubKey(account.coinIndex(2))).to.be.not.eq(pubKey)
+      const target = await dl.getPubKey(account.coinIndex(SupportedCoin.RISE));
+      expect(target.publicKey).to.be.not.eq(pubKey)
     });
     it('should change if index is changed', async () => {
-      expect(await dl.getPubKey(account.index(2))).to.be.not.eq(pubKey)
+      const target = await dl.getPubKey(account.index(2));
+      expect(target.publicKey).to.be.not.eq(pubKey)
     });
     it('should treat every value as different', async () => {
       // reset;
-      account.account(0).coinIndex(0).index(0);
+      account.account(0).coinIndex(SupportedCoin.LISK).index(0);
       const zero = await dl.getPubKey(account);
       account.account(1);
       const acc = await dl.getPubKey(account);
-      account.account(0).coinIndex(1);
+      account.account(0).coinIndex(SupportedCoin.RISE);
       const coin = await dl.getPubKey(account);
-      account.coinIndex(0).index(1);
+      account.coinIndex(SupportedCoin.LISK).index(1);
       const idx = await dl.getPubKey(account);
 
-      expect(zero).to.not.be.oneOf([acc, coin, idx]);
-      expect(acc).to.not.be.oneOf([zero, coin, idx]);
-      expect(coin).to.not.be.oneOf([zero, acc, idx]);
-      expect(idx).to.not.be.oneOf([zero, acc, coin]);
+      expect(zero.publicKey).to.not.be.oneOf([acc.publicKey, coin.publicKey, idx.publicKey]);
+      expect(acc.publicKey).to.not.be.oneOf([zero.publicKey, coin.publicKey, idx.publicKey]);
+      expect(coin.publicKey).to.not.be.oneOf([zero.publicKey, acc.publicKey, idx.publicKey]);
+      expect(idx.publicKey).to.not.be.oneOf([zero.publicKey, acc.publicKey, coin.publicKey]);
     });
+
+    it('returned publicKeys should match returned addresses', async () => {
+        for (let acc = 0; acc < 3; acc++) {
+          for (let index = 0; index < 3; index++) {
+            const { publicKey, address } = await dl.getPubKey(account
+              .coinIndex(SupportedCoin.LISK)
+              .account(acc + 200)
+              .index(index + 300)
+            );
+
+            expect(publicKey.length).to.be.eq(64);
+            expect(dposOffline.utils.deriveDPOSAddress(publicKey, 'L')).to.be.eq(address);
+          }
+      }
+    });
+  });
+  it('version() should return version', async () => {
+    expect(await dl.version()).to.be.eq('1.0.0');
   });
 
 });
