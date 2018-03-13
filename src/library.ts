@@ -54,7 +54,7 @@ export class DposLedger {
   public async getPubKey(account: LedgerAccount): Promise<{publicKey: string, address: string}> {
     const pathBuf = account.derivePath();
     const resp    = await this.exchange([
-      '04',
+      0x04,
       (pathBuf.length / 4),
       pathBuf,
     ]);
@@ -85,7 +85,7 @@ export class DposLedger {
    * ```
    */
   public signTX(account: LedgerAccount, buff: Buffer, hasRequesterPKey: boolean = false) {
-    return this.sign('05', account, buff, hasRequesterPKey);
+    return this.sign(0x05, account, buff, hasRequesterPKey);
   }
 
   /**
@@ -107,7 +107,7 @@ export class DposLedger {
    */
   public async signMSG(account: LedgerAccount, what: string | Buffer) {
     const buffer: Buffer = typeof(what) === 'string' ? new Buffer(what, 'utf8') : what;
-    const signature      = await this.sign('06', account, buffer);
+    const signature      = await this.sign(0x06, account, buffer);
     return Buffer.concat([signature, buffer]);
   }
 
@@ -124,7 +124,7 @@ export class DposLedger {
    * ```
    */
   public async version(): Promise<string> {
-    const [res] = await this.exchange('09');
+    const [res] = await this.exchange(0x09);
     return res.toString('utf8');
   }
 
@@ -133,8 +133,8 @@ export class DposLedger {
    * @returns {Promise<void>}
    */
   public async ping(): Promise<void> {
-    const [res] = await this.exchange('08');
-    if (res.toString('utf8') !== 'PONG') {
+    const [res] = await this.exchange(0x08);
+    if (res.toString('ascii') !== 'PONG') {
       throw new Error('Didnt receive PONG');
     }
   }
@@ -144,21 +144,21 @@ export class DposLedger {
    * @param {string | Buffer} hexData
    * @returns {Promise<Buffer[]>} Raw response buffers.
    */
-  public async exchange(hexData: string | Buffer | Array<(string | Buffer | number)>): Promise<Buffer[]> {
+  public async exchange(hexData: string | Buffer | number | Array<(string | Buffer | number)>): Promise<Buffer[]> {
     let inputBuffer: Buffer;
     if (Array.isArray(hexData)) {
       inputBuffer = Buffer.concat(hexData.map((item) => {
         if (typeof(item) === 'string') {
           return new Buffer(item, 'hex');
         } else if (typeof(item) === 'number') {
-          const b = new Buffer(1);
-          b.writeUInt8(item, 0);
-          return b;
+          return Buffer.alloc(1).fill(item);
         }
         return item;
       }));
     } else if (typeof(hexData) === 'string') {
       inputBuffer = new Buffer(hexData, 'hex');
+    } else if (typeof(hexData) === 'number') {
+      inputBuffer = Buffer.alloc(1).fill(hexData);
     } else {
       inputBuffer = hexData;
     }
@@ -203,14 +203,14 @@ export class DposLedger {
 
   /**
    * Raw sign protocol utility. It will handle signature of both msg and txs.
-   * @param {string} signType type of signature. 05 for txs, 06 for messages.
+   * @param {number} signType type of signature. 0x05 for txs, 0x06 for messages.
    * @param {LedgerAccount} account account
    * @param {Buffer} buff buffer to sign
    * @param {boolean} hasRequesterPKey if it has a requesterpublickey (used only in tx signing mode)
    * @returns {Promise<Buffer>} the signature
    */
   private async sign(
-    signType: string,
+    signType: number,
     account: LedgerAccount,
     buff: Buffer,
     hasRequesterPKey: boolean = false): Promise<Buffer> {
@@ -225,7 +225,7 @@ export class DposLedger {
       pathBuf,
       // headers
       buffLength,
-      hasRequesterPKey ? '01' : '00',
+      hasRequesterPKey ? 0x01 : 0x00,
       // data
       buff,
     ]);

@@ -1,4 +1,6 @@
 import * as sodium from 'libsodium-wrappers';
+import * as chaiAsPromised from 'chai-as-promised';
+import * as chai from 'chai';
 import { expect } from 'chai';
 import {
   BaseTx,
@@ -16,6 +18,8 @@ import TransportU2F from '@ledgerhq/hw-transport-u2f';
 import TransportNodeHid from '@ledgerhq/hw-transport-node-hid';
 import { isBrowser, isNode } from 'browser-or-node';
 import { ITransport } from '../../src/ledger';
+
+chai.use(chaiAsPromised);
 
 describe('Integration tests', function () {
   this.timeout(150222200);
@@ -406,6 +410,57 @@ describe('Integration tests', function () {
   });
   it('version() should return version', async () => {
     expect(await dl.version()).to.be.eq('1.0.0');
+  });
+
+  describe('comm_errors', () => {
+    // try to send 10KB+1 Bytes
+    it('should fail if we exceed 10KB', () => {
+      const buffer = Buffer.alloc(10*1024 + 1).fill('a');
+      return expect(dl.signMSG(account, buffer)).to.rejectedWith('6a84');
+    });
+    it('should fail if we exceed data size during comm', async () => {
+      const startBuff = Buffer.alloc(2);
+      startBuff.writeUInt16BE(10, 0); // 10 Bytes
+      await transport.send(0xe0, 89, 0, 0, startBuff);
+
+      // first command 9bytes + 1bytes
+      await transport.send(0xe0, 90, 0, 0, Buffer.alloc(9));
+      await transport.send(0xe0, 90, 0, 0, Buffer.alloc(1));
+
+      // here it should fail
+      return expect(transport.send(0xe0, 90, 0, 0, Buffer.alloc(1)))
+        .to.be.rejectedWith('6700'); // Incorrect length
+    });
+    it('should fail if we start comm without having started', async () => {
+      // first command 9bytes + 1bytes
+      return expect(transport.send(0xe0, 90, 0, 0, Buffer.alloc(9)))
+        .to.be.rejectedWith('9802'); // 'CODE_NOT_INITIALIZED'
+
+      // NOTE: this expects that there are no pending open comm from other tests.
+      // If this fails suddenly, then it probably means that c implementation has a BUG
+
+    });
+    it('should fail if we close comm without having sent anything', async () => {
+      return expect(transport.send(0xe0, 91, 0, 0))
+        .to.be.rejectedWith('6a80'); // Invalid data received
+    });
+    it('should fail if we try to sign an unknown tx', async () => {
+      const tx = new SendTx()
+        .set('amount', 0)
+        .set('timestamp', 10)
+        .set('fee', 100)
+        .set('recipientId', '123456781230L')
+        .set('senderPublicKey', pubKey);
+
+      tx.type = 11; // unknwon type.
+
+      return expect(dl.signTX(account, tx.getBytes())).to.be.rejectedWith('6a80'); // INCORRECT_DATA
+    });
+
+    it('should throw if unknown command', () => {
+      return expect(dl.exchange(0x11)).to.be.rejectedWith('6a80'); // INCORRECT_DATA
+    });
+
   });
 
 });

@@ -166,7 +166,7 @@ describe('library', () => {
       await instance.getPubKey(account);
       expect(instanceExchangeStub.calledOnce).is.true;
       expect(instanceExchangeStub.firstCall.args[0]).to.be.deep.eq([
-        '04',
+        0x04,
         account.derivePath().length / 4,
         account.derivePath()
       ]);
@@ -196,17 +196,17 @@ describe('library', () => {
     it('should call instance.exchange with signType 05', async () => {
       await instance.signTX(account, Buffer.alloc(2));
       expect(instanceExchangeStub.calledOnce).is.true;
-      expect(instanceExchangeStub.firstCall.args[0][0]).to.be.deep.eq('05');
+      expect(instanceExchangeStub.firstCall.args[0][0]).to.be.deep.eq(0x05);
     });
     it('should default hasRequesterPKey to false', async () => {
       await instance.signTX(account, Buffer.alloc(2));
       expect(instanceExchangeStub.calledOnce).is.true;
-      expect(instanceExchangeStub.firstCall.args[0][4]).to.be.deep.eq('00');
+      expect(instanceExchangeStub.firstCall.args[0][4]).to.be.deep.eq(0x0);
     });
     it('should allow hasRequesterPKey to true', async () => {
       await instance.signTX(account, Buffer.alloc(2), true);
       expect(instanceExchangeStub.calledOnce).is.true;
-      expect(instanceExchangeStub.firstCall.args[0][4]).to.be.deep.eq('01');
+      expect(instanceExchangeStub.firstCall.args[0][4]).to.be.deep.eq(0x01);
     });
     it('should propagate correct data derived from inputbuffer and account', async () => {
       const buff = Buffer.alloc(2);
@@ -215,11 +215,11 @@ describe('library', () => {
       const lengthBuff = Buffer.alloc(2);
       lengthBuff.writeUInt16BE(2, 0);
       expect(instanceExchangeStub.firstCall.args[0]).to.be.deep.eq([
-        '05', // sign type
+        0x05, // sign type
         account.derivePath().length / 4,
         account.derivePath(),
         lengthBuff, // buffer length
-        '00',
+        0x00,
         buff
       ]);
     });
@@ -243,12 +243,12 @@ describe('library', () => {
     it('should call instance.exchange with signType 06', async () => {
       await instance.signMSG(account, Buffer.alloc(2));
       expect(instanceExchangeStub.calledOnce).is.true;
-      expect(instanceExchangeStub.firstCall.args[0][0]).to.be.deep.eq('06');
+      expect(instanceExchangeStub.firstCall.args[0][0]).to.be.deep.eq(0x06);
     });
     it('should default hasRequesterPKey to false', async () => {
       await instance.signMSG(account, Buffer.alloc(2));
       expect(instanceExchangeStub.calledOnce).is.true;
-      expect(instanceExchangeStub.firstCall.args[0][4]).to.be.deep.eq('00');
+      expect(instanceExchangeStub.firstCall.args[0][4]).to.be.deep.eq(0x0);
     });
     it('should propagate correct data derived from inputbuffer and account', async () => {
       const buff = Buffer.alloc(2);
@@ -257,11 +257,11 @@ describe('library', () => {
       const lengthBuff = Buffer.alloc(2);
       lengthBuff.writeUInt16BE(2, 0);
       expect(instanceExchangeStub.firstCall.args[0]).to.be.deep.eq([
-        '06', // sign type
+        0x06, // sign type
         account.derivePath().length / 4,
         account.derivePath(),
         lengthBuff, // buffer length
-        '00',
+        0x0,
         buff,
       ]);
     });
@@ -272,6 +272,7 @@ describe('library', () => {
         .eq(new Buffer('vekexasia rules', 'utf8'));
     });
   });
+
   describe('ping', () => {
     let instanceExchangeStub: SinonStub;
     beforeEach(() => {
@@ -281,7 +282,7 @@ describe('library', () => {
     it('should send 08 with exchange', async () => {
       await instance.ping();
       expect(instanceExchangeStub.calledOnce).is.true;
-      expect(instanceExchangeStub.firstCall.args[0]).is.eq('08');
+      expect(instanceExchangeStub.firstCall.args[0]).is.eq(0x08);
     });
     it('should throw if exchange did not respond with PONG', () => {
       instanceExchangeStub.resolves('POOOONG');
@@ -297,7 +298,7 @@ describe('library', () => {
     it('should send 09 with exchange', async () => {
       await instance.version();
       expect(instanceExchangeStub.calledOnce).is.true;
-      expect(instanceExchangeStub.firstCall.args[0]).is.eq('09');
+      expect(instanceExchangeStub.firstCall.args[0]).is.eq(0x09);
     });
     it('should respond utf8 representation of exchange output', async () => {
       expect(await instance.version()).to.be.eq('1.0.0');
