@@ -14,6 +14,7 @@ module.exports = function(config) {
         base: 'Chrome',
         flags: [
           '--no-sandbox',
+          '--disable-setuid-sandbox',
           // '--disable-web-security',
           '--allow-insecure-localhost',
         ]
@@ -64,8 +65,6 @@ module.exports = function(config) {
     // possible values: config.LOG_DISABLE || config.LOG_ERROR || config.LOG_WARN || config.LOG_INFO || config.LOG_DEBUG
     logLevel: config.LOG_INFO,
 
-    hostname: 'localhost',
-
     // enable / disable watching file and executing tests whenever any file changes
     autoWatch: false,
 
@@ -94,6 +93,7 @@ module.exports = function(config) {
   };
   if (process.env.TRAVIS) {
     cfg.browsers = ['Chrome_travis_ci'];
+    cfg.protocol = 'http:';
     // Only run unit tests in browser.
     cfg.files = [
       'tests/unit/*spec.ts'
