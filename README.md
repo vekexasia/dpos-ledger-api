@@ -6,7 +6,7 @@ This library is meant to be used with the corresponding Ledger C Integration.
 
 ## Documentation
 
-Documenttion is available [here](https://vekexasia.github.io/dpos-ledger-ts/index.html).
+Documenttion is available [here](https://vekexasia.github.io/dpos-ledger-api/index.html).
 
 ## Environment Support
 
@@ -32,7 +32,7 @@ The current U2F transport protocol hava some issues so we suggest using `@ledger
 import TransportU2F from '@ledgerhq/hw-transport-u2f';
 import TransportNodeHid from '@ledgerhq/hw-transport-node-hid';
 import { isBrowser, isNode } from 'browser-or-node';
-import { DposLedger } from 'dpos-ledger-ts';
+import { DposLedger } from 'dpos-ledger-api';
 
 let transportMethod;
 if (isBrowser) {
