@@ -1,2 +1,11 @@
 tests
 docs
+coverage
+.idea
+.nyc_output
+webpack.config.js
+tslint.json
+tsconfig.json
+README.md
+.travis.yml
+karma.conf.js
