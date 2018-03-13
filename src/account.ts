@@ -4,15 +4,25 @@ import * as bip32path from 'bip32-path';
  * Class to specify An account used to query the ledger.
  */
 export enum SupportedCoin {
+  /**
+   * @see https://lisk.io
+   */
   LISK = 134,
+  /**
+   * @see https://rise.vision
+   */
   RISE = 1120,
 }
 
+/**
+ * Defines an Account to be used when communicating with ledger
+ */
 export class LedgerAccount {
   // tslint:disable variable-name
   private _account: number   = 0;
   private _index: number     = 1;
   private _coinIndex: SupportedCoin = SupportedCoin.LISK; // LISK
+
   // tslint:enable variable-name
   /**
    * Specify the index (last path in bip32)
@@ -20,9 +30,7 @@ export class LedgerAccount {
    * @returns {this}
    */
   public index(newIndex: number): this {
-    if (!Number.isInteger(newIndex)) {
-      throw new Error('Index must be an integer');
-    }
+    this.assertValidPath(newIndex);
     this._index = newIndex;
     return this;
   }
@@ -33,9 +41,7 @@ export class LedgerAccount {
    * @returns {this}
    */
   public account(newAccount: number): this {
-    if (!Number.isInteger(newAccount)) {
-      throw new Error('Account must be an integer');
-    }
+    this.assertValidPath(newAccount);
     this._account = newAccount;
     return this;
   }
@@ -47,9 +53,7 @@ export class LedgerAccount {
    * @returns {this}
    */
   public coinIndex(newIndex: SupportedCoin): this {
-    if (!Number.isInteger(newIndex)) {
-      throw new Error('Coin index must be an integer');
-    }
+    this.assertValidPath(newIndex);
     this._coinIndex = newIndex;
     return this;
   }
@@ -67,4 +71,15 @@ export class LedgerAccount {
     return retBuf;
   }
 
+  /**
+   * Asserts that the given param is a valid path (integer > 0)
+   */
+  private assertValidPath(n: number) {
+    if (!Number.isInteger(n)) {
+      throw new Error('Param must be an integer');
+    }
+    if (n < 0) {
+      throw new Error('Param must be greater than zero');
+    }
+  }
 }

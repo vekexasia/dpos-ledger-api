@@ -34,7 +34,8 @@ module.exports = function(config) {
 
     // list of files / patterns to load in the browser
     files: [
-      'tests/integration/*spec.ts'
+      'tests/integration/*spec.ts',
+      'tests/unit/*spec.ts'
     ],
 
 

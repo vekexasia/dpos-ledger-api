@@ -1,19 +1,17 @@
 language: node_js
 node_js:
   - '6'
-sudo: required
-addons:
-  postgresql: "9.6"
-services:
-  - postgresql
-  - redis-server
-before_script:
-  - psql -c 'create database test;' -U postgres
-  - psql -c "CREATE USER test WITH PASSWORD 'test';" -U postgres
+  - '8'
 script: npm run test-cover-all
 cache:
   directories:
     - node_modules
-notifications:
-  slack:
-    secure: KZi59NkHnpH7r40E/khsJlJPBQD346KCHbihYEX14nR0VE93p0AHSUpE8lQQoYd6WajHL/XiNa7aE/ssC4Zl3CumpznAa8ZFGOsOck2BaYqNTUQ88wtGEne3ULp/ZvvA3FffNeOiIZxU5bITU4GrU8SUxZlgOavGpa5+FjM8NIHJ+tVIkRi1oDz8947bqQpPTgM0gRTcnnPGcBwB/89U7YK34Y5VbTfPxINurPP0plJ2oMgQniDG4p54a7xYx+JKT9ywwckwCodX44+tXRs5IVIQPL0S9FpkBOqD8o7zLpZykO5qdZlzzVwB9n0TmEAqL6ddTIzbDB3dnRAefOqwstPtVyigUjOvEoXeGb1Qd1KMBiLJcXo/CgwHiAXnKfYuTakpXjiDsEHUIgFEH5vPoGNadx4k0hAXofNHoKP/M071piWFtvEJR270L7paA1cUmPCdEhFDQD5un/WB7kmagxghMGzlqd6Al89fxH30fZ7zghZgIFx5ejrOClFJ4zA23yNI9D2HNQze8zhHYOaLNpCgEr6SecYe2jl58fG28d6/M76tTE7GdKf9wzVkFWmAdULpQwyE9duIBCDDBb2Uw7buoONVEE9hArlkamL3CBSiGf/XXULfHGgWIiAvDg8IUeoGCjIXwHLjo1DYVJPMpiaarbymwPxRa3sZ66rCGL8=
+deploy:
+  - provider: pages
+    local_dir: docs/
+    skip_cleanup: true
+    target_branch: gh-pages
+    github_token:
+        secure: RIGrrcF3D7Fu5m3Ah2jban7Kk+kKU/43xIk6SE9sgWI6RrcWyVeot3LVZkdGKyhduCxvkF9Y3fNZ27Xpcz4olgI33uSLnnoVrn3UuFygui8ShGLXBLaKMok6bDpqjUDlraVAJbStJdSgD3vn0/SfkuUTLfHyzLX/1KD0EOuiVxKf4kVVItslDH25HnuIA5b9Ns8plHhFpzbt67wUnlfCR7p4P28o+cByIn8l56oGIeqZuqrLIU1NMCo/1rWD9NcaICdkt+JN388t0mM4OJagRkWAV3BfJ04SvRKQtPfRHOgEVlT2I6/p2P19LJxgiw9UaQvKb/2xPcKFy8ETjDXZOBG3KEheM8HfIkPtPkKwV6UQI3kINKjVXnEFKYxZj7GM17UChgHynnRD3SzNbol5vtHwsUzruq5QpYTDNxX4/r69/0FI6E0Wsr3WbrxlELNP8v8xccKkX/OL9hspIbIMzORiFt8mWkbZyGQ1NqMHla7lH3vveJbqckIeZI5NFPYUfRzZ7aScPf1HluNGarINZGMPTzEJg5v8o7OPxcNJmCqRvxiopOnSrzzqemzSHP2yOe7cY/VXrRs8rTChCfcCcjTRGuoy9qe25UuZh/1XxAxTcPuRbw/qpDqmFe3ODuRUz78o9y9ipDcVxAncCbwaotIX0pWNiQBL6bhL0x/QiUI=
+    on:
+      branch: master

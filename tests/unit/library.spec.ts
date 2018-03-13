@@ -36,7 +36,7 @@ describe('library', () => {
     // Final response result
     const finalResultResponse = buildResponseFromLedger(finalResp);
     commSendStub.onCall(chunks + 1)
-      .resolves(finalResultResponse)
+      .resolves(finalResultResponse);
   }
   function buildResponseFromLedger(resps: Buffer[]) {
     return Buffer
@@ -48,15 +48,31 @@ describe('library', () => {
             const outBuf = Buffer.alloc(2 + b.length);
             outBuf.writeUInt16LE(b.length, 0);
             b.copy(outBuf, 2, 0, b.length);
-            return outBuf
+            return outBuf;
           }))
-      )
+      );
   }
+
+  describe('constructor', () => {
+    it ('should throw if chunkSize > 240', () => {
+      expect(() => new DposLedger({} as any, 241))
+        .to.throw('Chunk size cannot exceed 240');
+    });
+    it ('should throw if chunkSize < 1', () => {
+      expect(() => new DposLedger({} as any, 0))
+        .to.throw('Chunk size cannot be less than 1');
+    });
+    it ('should throw if transport is null', () => {
+      expect(() => new DposLedger(null))
+        .to.throw('Transport cannot be empty');
+    });
+    it ('should throw if transport is undefined', () => {
+      expect(() => new DposLedger(undefined))
+        .to.throw('Transport cannot be empty');
+    });
+  });
+
   describe('exchange comm protocol', () => {
-
-
-
-
     describe('all good', () => {
       it('should send one chunk of data and call .comm.exchange twice with proper data', async () => {
         buildCommProtocol(
@@ -209,4 +225,82 @@ describe('library', () => {
     });
   });
 
+  describe('signMSG', () => {
+    let account: LedgerAccount;
+    let derivePathSpy: SinonSpy;
+    let instanceExchangeStub: SinonStub;
+    beforeEach(() => {
+      account              = new LedgerAccount();
+      derivePathSpy        = sinon.spy(account, 'derivePath');
+      instanceExchangeStub = sinon.stub(instance, 'exchange');
+      instanceExchangeStub.resolves([new Buffer('aa', 'hex')]);
+    });
+
+    it('should call account derivePath', async () => {
+      await instance.signMSG(account, Buffer.alloc(2));
+      expect(derivePathSpy.calledOnce).is.true;
+    });
+    it('should call instance.exchange with signType 06', async () => {
+      await instance.signMSG(account, Buffer.alloc(2));
+      expect(instanceExchangeStub.calledOnce).is.true;
+      expect(instanceExchangeStub.firstCall.args[0][0]).to.be.deep.eq('06');
+    });
+    it('should default hasRequesterPKey to false', async () => {
+      await instance.signMSG(account, Buffer.alloc(2));
+      expect(instanceExchangeStub.calledOnce).is.true;
+      expect(instanceExchangeStub.firstCall.args[0][4]).to.be.deep.eq('00');
+    });
+    it('should propagate correct data derived from inputbuffer and account', async () => {
+      const buff = Buffer.alloc(2);
+      await instance.signMSG(account, buff);
+      expect(instanceExchangeStub.calledOnce).is.true;
+      const lengthBuff = Buffer.alloc(2);
+      lengthBuff.writeUInt16BE(2, 0);
+      expect(instanceExchangeStub.firstCall.args[0]).to.be.deep.eq([
+        '06', // sign type
+        account.derivePath().length / 4,
+        account.derivePath(),
+        lengthBuff, // buffer length
+        '00',
+        buff,
+      ]);
+    });
+    it('should call convert string to buffer', async () => {
+      await instance.signMSG(account, 'vekexasia rules');
+      expect(instanceExchangeStub.calledOnce).is.true;
+      expect(instanceExchangeStub.firstCall.args[0][5]).to.be.deep
+        .eq(new Buffer('vekexasia rules', 'utf8'));
+    });
+  });
+  describe('ping', () => {
+    let instanceExchangeStub: SinonStub;
+    beforeEach(() => {
+      instanceExchangeStub = sinon.stub(instance, 'exchange');
+      instanceExchangeStub.resolves([new Buffer('PONG', 'utf8')]);
+    });
+    it('should send 08 with exchange', async () => {
+      await instance.ping();
+      expect(instanceExchangeStub.calledOnce).is.true;
+      expect(instanceExchangeStub.firstCall.args[0]).is.eq('08');
+    });
+    it('should throw if exchange did not respond with PONG', () => {
+      instanceExchangeStub.resolves('POOOONG');
+      return expect(instance.ping()).to.rejectedWith('Didnt receive PONG');
+    });
+  });
+  describe('version', () => {
+    let instanceExchangeStub: SinonStub;
+    beforeEach(() => {
+      instanceExchangeStub = sinon.stub(instance, 'exchange');
+      instanceExchangeStub.resolves([new Buffer('1.0.0', 'utf8')]);
+    });
+    it('should send 09 with exchange', async () => {
+      await instance.version();
+      expect(instanceExchangeStub.calledOnce).is.true;
+      expect(instanceExchangeStub.firstCall.args[0]).is.eq('09');
+    });
+    it('should respond utf8 representation of exchange output', async () => {
+      expect(await instance.version()).to.be.eq('1.0.0');
+    });
+  });
 });

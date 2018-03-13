@@ -12,8 +12,8 @@ import {
 } from 'dpos-offline';
 import { DposLedger, LedgerAccount, SupportedCoin } from '../../src/';
 import * as empty from 'is-empty';
-import TransportU2F from '@ledgerhq/hw-transport-u2f'
-import TransportNodeHid from '@ledgerhq/hw-transport-node-hid'
+import TransportU2F from '@ledgerhq/hw-transport-u2f';
+import TransportNodeHid from '@ledgerhq/hw-transport-node-hid';
 import { isBrowser, isNode } from 'browser-or-node';
 import { ITransport } from '../../src/ledger';
 
@@ -27,7 +27,8 @@ describe('Integration tests', function () {
     transport = await (isBrowser ? TransportU2F.create() : TransportNodeHid.create());
     dl        = new DposLedger(transport);
   });
-  after(() => transport.close());
+  // tslint:disable-next-line
+  after(() => transport['close']());
 
   beforeEach(async () => {
     account   = new LedgerAccount();

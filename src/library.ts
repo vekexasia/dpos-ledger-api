@@ -3,21 +3,33 @@ import { LedgerAccount } from './account';
 import { ITransport } from './ledger';
 
 /**
- * Communication Protocol class
+ * Communication Protocol class.
+ * @example
+ * ```javascript
+ *
+ * import TransportNodeHid from '@ledgerhq/hw-transport-node-hid';
+ * import { DposLedger, LedgerAccount } from 'dpos-ledger-ts';
+ *
+ * const account = new LedgerAccount();
+ * TransportNodeHid.create()
+ *   .then((transport) => new DposLedger(transport))
+ *   .then((instance) => instance.getPubKey(account));
+ *   .then(({publicKey}) => console.log(`pubKey: ${publicKey}`);
+ * ```
  */
 export class DposLedger {
 
   /**
    * @param {ITransport} transport transport class.
-   * @param {number} chunkSize lets you specify the chunkSize for each communication
-   * DO Not change if you don't know what you're doing.
+   * @param {number} chunkSize lets you specify the chunkSize for each communication.<br/>
+   * <strong>DO not</strong> change if you don't know what you're doing.
    */
   constructor(private transport: ITransport,  private chunkSize: number = 240) {
     if (chunkSize > 240) {
-      throw new Error('Chunk Size cannot exceed 240');
+      throw new Error('Chunk size cannot exceed 240');
     }
     if (chunkSize < 1) {
-      throw new Error('Chunk Size cannot go below 1');
+      throw new Error('Chunk size cannot be less than 1');
     }
     if (transport === null || typeof(transport) === 'undefined') {
       throw new Error('Transport cannot be empty');
@@ -28,7 +40,16 @@ export class DposLedger {
   /**
    * Retrieves a publicKey associated to an account
    * @param {LedgerAccount} account
-   * @returns {Promise<string>}
+   * @returns {Promise<{publicKey: string, account:string}>}
+   * @example
+   * ```javascript
+   *
+   * instance.getPubKey(account)
+   *   .then((resp) => {
+   *     console.log(resp.publicKey);
+   *     console.log(resp.address);
+   *   });
+   * ```
    */
   public async getPubKey(account: LedgerAccount): Promise<{publicKey: string, address: string}> {
     const pathBuf = account.derivePath();
@@ -41,8 +62,8 @@ export class DposLedger {
     const [publicKey, address] = resp;
 
     return {
+      address: address.toString('utf8'),
       publicKey: publicKey.toString('hex'),
-      address: address.toString('utf8')
     };
   }
 
@@ -54,6 +75,14 @@ export class DposLedger {
    * @param {boolean} hasRequesterPKey use true if the tx also includes a requesterPublicKey.
    * This cannot be derived using static analysis of the content included in the bytes.
    * @returns {Promise<Buffer>} signature.
+   * @example
+   * ```javascript
+   *
+   * instance.signTX(account, transaction.getBytes(), false)
+   *   .then((signature) => {
+   *     console.log('Signature is: ', signature.toString('hex'));
+   *   });
+   * ```
    */
   public signTX(account: LedgerAccount, buff: Buffer, hasRequesterPKey: boolean = false) {
     return this.sign('05', account, buff, hasRequesterPKey);
@@ -67,6 +96,14 @@ export class DposLedger {
    * @param {string | Buffer} what the message to sign
    * @returns {Promise<Buffer>} the "non-detached" signature.
    * Signature goodness can be verified using sodium. See tests.
+   * @example
+   * ```javascript
+   *
+   * instance.signMSG(account, 'vekexasia rules', false)
+   *   .then((signature) => {
+   *     console.log('Signature is: ', signature.toString('hex'));
+   *   });
+   * ```
    */
   public async signMSG(account: LedgerAccount, what: string | Buffer) {
     const buffer: Buffer = typeof(what) === 'string' ? new Buffer(what, 'utf8') : what;
@@ -75,8 +112,16 @@ export class DposLedger {
   }
 
   /**
-   * Simple ping utility. It won't throw if ping suceeded.
-   * @returns {Promise<void>}
+   * Gets Ledger App Version
+   * @returns {Promise<string>} version string Ex: 1.0.0
+   * @example
+   * ```javascript
+   *
+   * instance.version()
+   *   .then((version) => {
+   *     console.log('Version is: ', version);
+   *   });
+   * ```
    */
   public async version(): Promise<string> {
     const [res] = await this.exchange('09');
@@ -95,7 +140,7 @@ export class DposLedger {
   }
 
   /**
-   * Raw exchange protocol handling
+   * Raw exchange protocol handling. It's exposed but it is meant for internal usage only.
    * @param {string | Buffer} hexData
    * @returns {Promise<Buffer[]>} Raw response buffers.
    */
