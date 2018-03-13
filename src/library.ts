@@ -109,9 +109,8 @@ export class DposLedger {
           const b = new Buffer(1);
           b.writeUInt8(item, 0);
           return b;
-        } else if (item instanceof Buffer) {
-          return item;
         }
+        return item;
       }));
     } else if (typeof(hexData) === 'string') {
       inputBuffer = new Buffer(hexData, 'hex');
