@@ -13,9 +13,9 @@ module.exports = function(config) {
       Chrome_travis_ci: {
         base: 'Chrome',
         flags: [
-          // '--no-sandbox',
-        // '--disable-web-security',
-        // '--allow-insecure-localhost',
+          '--no-sandbox',
+          // '--disable-web-security',
+          '--allow-insecure-localhost',
         ]
       }
     },
@@ -94,6 +94,10 @@ module.exports = function(config) {
   };
   if (process.env.TRAVIS) {
     cfg.browsers = ['Chrome_travis_ci'];
+    // Only run unit tests in browser.
+    cfg.files = [
+      'tests/unit/*spec.ts'
+    ];
   }
   config.set(cfg)
 };

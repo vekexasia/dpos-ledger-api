@@ -2,16 +2,22 @@ language: node_js
 node_js:
   - '6'
   - '8'
-script: npm run coverage
 cache:
   directories:
     - node_modules
+script:
+  - npm run test-browser
+  - npm run coverage
+after_success: npm run docs
 deploy:
-  - provider: pages
-    local_dir: docs/
-    skip_cleanup: true
-    target_branch: gh-pages
-    github_token:
-      secure: yvRUQGkllXvkqQ14lXuzJx36cs9W6Xh9fwQYUeUqdQdsoxGcP7UfJqOSer+d/uwvYoJuGErF2QDWrnzRXHs/xw2NTe2vL4YlN0ir7od+DB5QLmNQp3gKxtQZR7ZFPtFrNd1wgvyxQZvVdVcKxanDP0TjsCvgsDCLmq7+/d/HsqaXidQuifYpfVem7jiYVV/Ns671jcwVbVRHKl5UOpw//O3EDT8OJzXS1Tl1mlGbVCQqhaA3+Dd9SEfCRrcXGQYj6AZV4rrtj3iwgzRfySoWmytp8CE3IhnvRXalFQKKnSB+lf9e/gU4DG7sxcONW9rKIVB/7Wrl81S6Ffx9sKquLZNhTUzQfNtGdugeZ0Pz1ABRvZTZ6fjaadQECLgdqCXh+3Q3HFgMiTtfJ7VOL810q6eeh7ZwbVh4YQIHxTgup4Nhi1t9dE8DSlw9oiGwvhMeiPxvCPhrZMPNJ6eaF6icTF1q7Q46WEFSSygoDzcdkNBkjg8FW6BE7/jQOIKtSBY1QXu22hlLNXwssWpOSrwspW+BU47pHkzQTYU4tmvL/mtXT+9AKaKsf7ackcz8bSfczGkvHvX5vUslIhkBFD61iiF6yfw1lao3IqbRCElaYTCcrnvo7rzmEa635qXPQ7CUTKoPfATqZkx3fVpRQtB+nMlkmbE9dy+eja6EQJ3qx7I=
-    on:
-      branch: master
+  edge:
+    branch: v1.8.47
+  provider: pages
+  local_dir: docs/
+  skip_cleanup: true
+  github-token:
+    secure: $GITHUB_TOKEN
+  target_branch: gh-pages
+  on:
+    branch: master
+    node: '6'
