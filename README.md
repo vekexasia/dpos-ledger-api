@@ -2,11 +2,17 @@
 
 # dPoS Ledger 
 
-This library is meant to be used with the corresponding Ledger C Integration.
+This library is meant to be used with the corresponding Ledger C implementation. Given the end-user have:
+
+ - His ledger connected & unlocked;
+ - the corresponding app open;
+
+This JS library will serve as an interface between your code and the hardware wallet handling the communication protocol.
+
 
 ## Documentation
 
-Documenttion is available [here](https://vekexasia.github.io/dpos-ledger-api/index.html).
+Documention is available [here](https://vekexasia.github.io/dpos-ledger-api/index.html).
 
 ## Environment Support
 
@@ -24,7 +30,7 @@ This library, and the ledger app, have been developed and tested with `hw-transp
 
 The Browser version currently weights `32KB` (non gzipped). It can be used both via webpack or directly including it in your page just like any other script.
 
-The current U2F transport protocol hava some issues so we suggest using `@ledgerhq/hw-transport-node-hid@3.0.0` as Transport.
+The current U2F transport protocol hava some issues so I'd suggest to use `@ledgerhq/hw-transport-node-hid@3.0.0` as Transport.
 
 ## Platform Indipendent Example
 
