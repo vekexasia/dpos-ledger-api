@@ -127,8 +127,8 @@ export class DposLedger {
   public async version(): Promise<{version: string, appName: string}> {
     const [version, appName] = await this.exchange(0x09);
     return {
+      appName: appName.toString('ascii'),
       version: version.toString('ascii'),
-      appName: appName.toString('ascii')
     };
   }
 
