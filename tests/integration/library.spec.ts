@@ -409,7 +409,10 @@ describe('Integration tests', function () {
     });
   });
   it('version() should return version', async () => {
-    expect(await dl.version()).to.be.eq('1.0.0');
+    expect(await dl.version()).to.be.deep.eq({
+      version: '1.0.0',
+      appName: 'dPoS'
+    });
   });
 
   describe('comm_errors', () => {

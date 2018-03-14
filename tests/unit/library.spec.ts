@@ -293,7 +293,7 @@ describe('library', () => {
     let instanceExchangeStub: SinonStub;
     beforeEach(() => {
       instanceExchangeStub = sinon.stub(instance, 'exchange');
-      instanceExchangeStub.resolves([new Buffer('1.0.0', 'utf8')]);
+      instanceExchangeStub.resolves([new Buffer('1.0.0', 'ascii'), new Buffer('dPoS', 'ascii')]);
     });
     it('should send 09 with exchange', async () => {
       await instance.version();
@@ -301,7 +301,10 @@ describe('library', () => {
       expect(instanceExchangeStub.firstCall.args[0]).is.eq(0x09);
     });
     it('should respond utf8 representation of exchange output', async () => {
-      expect(await instance.version()).to.be.eq('1.0.0');
+      expect(await instance.version()).to.be.deep.eq({
+        version: '1.0.0',
+        appName: 'dPoS'
+      });
     });
   });
 });

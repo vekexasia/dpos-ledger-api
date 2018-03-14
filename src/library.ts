@@ -118,14 +118,18 @@ export class DposLedger {
    * ```javascript
    *
    * instance.version()
-   *   .then((version) => {
-   *     console.log('Version is: ', version);
+   *   .then((resp) => {
+   *     console.log('AppName is: ', resp.appName);
+   *     console.log('Version is: ', resp.version);
    *   });
    * ```
    */
-  public async version(): Promise<string> {
-    const [res] = await this.exchange(0x09);
-    return res.toString('utf8');
+  public async version(): Promise<{version: string, appName: string}> {
+    const [version, appName] = await this.exchange(0x09);
+    return {
+      version: version.toString('ascii'),
+      appName: appName.toString('ascii')
+    };
   }
 
   /**
