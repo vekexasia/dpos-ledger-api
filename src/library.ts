@@ -24,7 +24,7 @@ export class DposLedger {
    * @param {number} chunkSize lets you specify the chunkSize for each communication.<br/>
    * <strong>DO not</strong> change if you don't know what you're doing.
    */
-  constructor(private transport: ITransport,  private chunkSize: number = 240) {
+  constructor(private transport: ITransport, private chunkSize: number = 240) {
     if (chunkSize > 240) {
       throw new Error('Chunk size cannot exceed 240');
     }
@@ -40,6 +40,7 @@ export class DposLedger {
   /**
    * Retrieves a publicKey associated to an account
    * @param {LedgerAccount} account
+   * @param {boolean} showOnLedger ask ledger to show the address.
    * @returns {Promise<{publicKey: string, account:string}>}
    * @example
    * ```javascript
@@ -51,10 +52,12 @@ export class DposLedger {
    *   });
    * ```
    */
-  public async getPubKey(account: LedgerAccount): Promise<{publicKey: string, address: string}> {
+  // tslint:disable-next-line max-line-length
+  public async getPubKey(account: LedgerAccount, showOnLedger: boolean = false): Promise<{ publicKey: string, address: string }> {
     const pathBuf = account.derivePath();
     const resp    = await this.exchange([
       0x04,
+      showOnLedger ? 0x1 : 0x0,
       (pathBuf.length / 4),
       pathBuf,
     ]);
@@ -62,7 +65,7 @@ export class DposLedger {
     const [publicKey, address] = resp;
 
     return {
-      address: address.toString('utf8'),
+      address  : address.toString('utf8'),
       publicKey: publicKey.toString('hex'),
     };
   }
@@ -113,21 +116,21 @@ export class DposLedger {
 
   /**
    * Gets Ledger App Version
-   * @returns {Promise<string>} version string Ex: 1.0.0
+   * @returns {Promise<object>} see example
    * @example
    * ```javascript
    *
    * instance.version()
    *   .then((resp) => {
-   *     console.log('AppName is: ', resp.appName);
+   *     console.log('CoinID is: ', resp.coinID);
    *     console.log('Version is: ', resp.version);
    *   });
    * ```
    */
-  public async version(): Promise<{version: string, appName: string}> {
-    const [version, appName] = await this.exchange(0x09);
+  public async version(): Promise<{ version: string, coinID: string }> {
+    const [version, coinID] = await this.exchange(0x09);
     return {
-      appName: appName.toString('ascii'),
+      coinID : coinID.toString('ascii'),
       version: version.toString('ascii'),
     };
   }

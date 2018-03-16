@@ -26,6 +26,7 @@ describe('Integration tests', function () {
   let dl: DposLedger;
   let account: LedgerAccount;
   let pubKey: string;
+  let address: string;
   let transport: ITransport;
   before(async () => {
     transport = await (isBrowser ? TransportU2F.create() : TransportNodeHid.create());
@@ -39,6 +40,7 @@ describe('Integration tests', function () {
     const res = await dl.getPubKey(account);
     expect(res.publicKey).to.match(/^[a-z0-9]{64}$/);
     pubKey = res.publicKey;
+    address = res.address;
   });
 
   describe('Messages', () => {
@@ -407,11 +409,16 @@ describe('Integration tests', function () {
           }
       }
     });
+
+    it('should parompt aaddress on ledger screen', async () => {
+      const res = await dl.getPubKey(account, true);
+      expect(res.address).to.be.eq(address);
+    });
   });
   it('version() should return version', async () => {
     expect(await dl.version()).to.be.deep.eq({
       version: '1.0.0',
-      appName: 'dPoS'
+      coinID: 'dPoS'
     });
   });
 

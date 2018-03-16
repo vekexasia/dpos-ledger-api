@@ -167,6 +167,17 @@ describe('library', () => {
       expect(instanceExchangeStub.calledOnce).is.true;
       expect(instanceExchangeStub.firstCall.args[0]).to.be.deep.eq([
         0x04,
+        0x00,
+        account.derivePath().length / 4,
+        account.derivePath()
+      ]);
+    });
+    it('should allow true in second param to show address', async () => {
+      await instance.getPubKey(account, true);
+      expect(instanceExchangeStub.calledOnce).is.true;
+      expect(instanceExchangeStub.firstCall.args[0]).to.be.deep.eq([
+        0x04,
+        0x01, // show address on ledger.
         account.derivePath().length / 4,
         account.derivePath()
       ]);
@@ -303,7 +314,7 @@ describe('library', () => {
     it('should respond utf8 representation of exchange output', async () => {
       expect(await instance.version()).to.be.deep.eq({
         version: '1.0.0',
-        appName: 'dPoS'
+        coinID: 'dPoS'
       });
     });
   });
