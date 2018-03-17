@@ -405,20 +405,20 @@ describe('Integration tests', function () {
             );
 
             expect(publicKey.length).to.be.eq(64);
-            expect(dposOffline.utils.deriveDPOSAddress(publicKey, 'L')).to.be.eq(address);
+            expect(dposOffline.utils.deriveDPOSAddress(publicKey, 'D')).to.be.eq(address);
           }
       }
     });
 
-    it('should parompt aaddress on ledger screen', async () => {
-      const res = await dl.getPubKey(account, true);
+    it('should prompt aaddress on ledger screen', async () => {
+      const res = await dl.getPubKey(account.index(1), true);
       expect(res.address).to.be.eq(address);
     });
   });
   it('version() should return version', async () => {
     expect(await dl.version()).to.be.deep.eq({
       version: '1.0.0',
-      coinID: 'dPoS'
+      coinID: 'all'
     });
   });
 
