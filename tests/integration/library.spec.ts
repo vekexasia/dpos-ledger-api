@@ -50,6 +50,30 @@ describe('Integration tests', function () {
       const res       = GenericWallet.verifyMessage(msg, signature, pubKey);
       expect(res).is.true;
     });
+    it('should generate a warning if data length is 32 bytes', async () => {
+      const msg = new Buffer(new Array(32).fill(1));
+      const signature = await dl.signMSG(account, msg);
+      const res       = GenericWallet.verifyMessage(msg, signature, pubKey);
+      expect(res).is.true;
+    });
+    it('should rewrite msg to binary data if more than 40% of data is non printable', async () => {
+      const msg = Buffer.concat([
+        new Buffer('abcde', 'utf8'), // 6 bytes
+        new Buffer('00000000', 'hex'), // 4 bytes
+      ]);
+      const signature = await dl.signMSG(account, msg);
+      const res       = GenericWallet.verifyMessage(msg, signature, pubKey);
+      expect(res).is.true;
+    });
+    it('should rewrite msg to binary data if all text but first byte unprintable', async () => {
+      const msg = Buffer.concat([
+        new Buffer('00', 'hex'), // 4 bytes,
+        new Buffer('abcde', 'utf8'), // 6 bytes
+      ]);
+      const signature = await dl.signMSG(account, msg);
+      const res       = GenericWallet.verifyMessage(msg, signature, pubKey);
+      expect(res).is.true;
+    });
     it('should gen valid signature for short message with newline', async () => {
       const msg       = 'hey\nhi';
       const signature = await dl.signMSG(account, msg);
