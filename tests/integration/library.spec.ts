@@ -398,25 +398,19 @@ describe('Integration tests', function () {
       const target = await dl.getPubKey(account.coinIndex(SupportedCoin.RISE));
       expect(target.publicKey).to.be.not.eq(pubKey)
     });
-    it('should change if index is changed', async () => {
-      const target = await dl.getPubKey(account.index(2));
-      expect(target.publicKey).to.be.not.eq(pubKey)
-    });
+
     it('should treat every value as different', async () => {
       // reset;
-      account.account(0).coinIndex(SupportedCoin.LISK).index(0);
+      account.account(0).coinIndex(SupportedCoin.LISK);
       const zero = await dl.getPubKey(account);
       account.account(1);
       const acc = await dl.getPubKey(account);
       account.account(0).coinIndex(SupportedCoin.RISE);
       const coin = await dl.getPubKey(account);
-      account.coinIndex(SupportedCoin.LISK).index(1);
-      const idx = await dl.getPubKey(account);
 
-      expect(zero.publicKey).to.not.be.oneOf([acc.publicKey, coin.publicKey, idx.publicKey]);
-      expect(acc.publicKey).to.not.be.oneOf([zero.publicKey, coin.publicKey, idx.publicKey]);
-      expect(coin.publicKey).to.not.be.oneOf([zero.publicKey, acc.publicKey, idx.publicKey]);
-      expect(idx.publicKey).to.not.be.oneOf([zero.publicKey, acc.publicKey, coin.publicKey]);
+      expect(zero.publicKey).to.not.be.oneOf([acc.publicKey, coin.publicKey]);
+      expect(acc.publicKey).to.not.be.oneOf([zero.publicKey, coin.publicKey]);
+      expect(coin.publicKey).to.not.be.oneOf([zero.publicKey, acc.publicKey]);
     });
 
     it('returned publicKeys should match returned addresses', async () => {
@@ -425,7 +419,6 @@ describe('Integration tests', function () {
             const { publicKey, address } = await dl.getPubKey(account
               .coinIndex(SupportedCoin.LISK)
               .account(acc + 200)
-              .index(index + 300)
             );
 
             expect(publicKey.length).to.be.eq(64);
@@ -434,8 +427,8 @@ describe('Integration tests', function () {
       }
     });
 
-    it('should prompt aaddress on ledger screen', async () => {
-      const res = await dl.getPubKey(account.index(1), true);
+    it('should prompt address on ledger screen', async () => {
+      const res = await dl.getPubKey(account, true);
       expect(res.address).to.be.eq(address);
     });
   });

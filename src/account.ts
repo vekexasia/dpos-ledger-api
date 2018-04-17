@@ -20,20 +20,9 @@ export enum SupportedCoin {
 export class LedgerAccount {
   // tslint:disable variable-name
   private _account: number   = 0;
-  private _index: number     = 1;
   private _coinIndex: SupportedCoin = SupportedCoin.LISK; // LISK
 
   // tslint:enable variable-name
-  /**
-   * Specify the index (last path in bip32)
-   * @param {number} newIndex
-   * @returns {this}
-   */
-  public index(newIndex: number): this {
-    this.assertValidPath(newIndex);
-    this._index = newIndex;
-    return this;
-  }
 
   /**
    * Specify the account number
@@ -63,7 +52,7 @@ export class LedgerAccount {
    * @returns {Buffer} defines the path in buffer form.
    */
   public derivePath(): Buffer {
-    const pathArray: number[] = bip32path.fromString(`44'/${this._coinIndex}'/0'/${this._account}'/${this._index}'`)
+    const pathArray: number[] = bip32path.fromString(`44'/${this._coinIndex}'/${this._account}'`)
       .toPathArray();
 
     const retBuf = Buffer.alloc(pathArray.length * 4);

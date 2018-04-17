@@ -24,13 +24,13 @@ Both Node.JS and minified Browser version of this library are provided.
 
 To consume this library through an app running under the NodeVM, you'll need to use the [@ledgerhq/hw-transport-node-hid](https://github.com/LedgerHQ/ledgerjs/blob/master/packages/hw-transport-node-hid) transport.
 
-This library, and the ledger app, have been developed and tested with `hw-transport-node-hid@4.6.0`.
+This library, and the ledger app, have been developed and tested with `hw-transport-node-hid@4.7.6`.
 
 ### Browser
 
 The Browser version currently weights `32KB` (non gzipped). It can be used both via webpack or directly including it in your page just like any other script.
 
-The current U2F transport protocol hava some issues so I'd suggest to use `@ledgerhq/hw-transport-node-hid@3.0.0` as Transport.
+This library, and the ledger app, have been tested with `@ledgerhq/hw-transport-node-hid@4.7.3` as Transport.
 
 ## Platform Indipendent Example
 
