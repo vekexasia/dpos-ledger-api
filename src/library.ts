@@ -54,7 +54,7 @@ export class DposLedger {
    */
   // tslint:disable-next-line max-line-length
   public async getPubKey(account: LedgerAccount | Buffer, showOnLedger: boolean = false): Promise<{ publicKey: string, address: string }> {
-    const pathBuf = Buffer.isBuffer(account)? account : account.derivePath();
+    const pathBuf = Buffer.isBuffer(account) ? account : account.derivePath();
     const resp    = await this.exchange([
       0x04,
       showOnLedger ? 0x1 : 0x0,

@@ -172,6 +172,15 @@ describe('library', () => {
         account.derivePath()
       ]);
     });
+    it('should allow custom path32 derivation buffer', async () => {
+      await instance.getPubKey(account.derivePath());
+      expect(instanceExchangeStub.firstCall.args[0]).to.be.deep.eq([
+        0x04,
+        0x00,
+        account.derivePath().length / 4,
+        account.derivePath()
+      ]);
+    });
     it('should allow true in second param to show address', async () => {
       await instance.getPubKey(account, true);
       expect(instanceExchangeStub.calledOnce).is.true;
@@ -234,6 +243,21 @@ describe('library', () => {
         buff
       ]);
     });
+    it('should do the same as above ^^ for custom bip32 buffer', async () => {
+      const buff = Buffer.alloc(2);
+      await instance.signTX(account.derivePath(), buff, false);
+      expect(instanceExchangeStub.calledOnce).is.true;
+      const lengthBuff = Buffer.alloc(2);
+      lengthBuff.writeUInt16BE(2, 0);
+      expect(instanceExchangeStub.firstCall.args[0]).to.be.deep.eq([
+        0x05, // sign type
+        account.derivePath().length / 4,
+        account.derivePath(),
+        lengthBuff, // buffer length
+        0x00,
+        buff
+      ]);
+    });
   });
 
   describe('signMSG', () => {
@@ -264,6 +288,21 @@ describe('library', () => {
     it('should propagate correct data derived from inputbuffer and account', async () => {
       const buff = Buffer.alloc(2);
       await instance.signMSG(account, buff);
+      expect(instanceExchangeStub.calledOnce).is.true;
+      const lengthBuff = Buffer.alloc(2);
+      lengthBuff.writeUInt16BE(2, 0);
+      expect(instanceExchangeStub.firstCall.args[0]).to.be.deep.eq([
+        0x06, // sign type
+        account.derivePath().length / 4,
+        account.derivePath(),
+        lengthBuff, // buffer length
+        0x0,
+        buff,
+      ]);
+    });
+    it('should do the same as above ^^ but with custom bip32 buffer', async () => {
+      const buff = Buffer.alloc(2);
+      await instance.signMSG(account.derivePath(), buff);
       expect(instanceExchangeStub.calledOnce).is.true;
       const lengthBuff = Buffer.alloc(2);
       lengthBuff.writeUInt16BE(2, 0);
