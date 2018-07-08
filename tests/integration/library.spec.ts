@@ -28,6 +28,7 @@ describe('Integration tests', function () {
   let pubKey: string;
   let address: string;
   let transport: ITransport;
+  const msgPrefix = 'dPoS Signed Message:\n';
   before(async () => {
     transport = await (isBrowser ? TransportU2F.create() : TransportNodeHid.create());
     dl        = new DposLedger(transport);
@@ -44,20 +45,28 @@ describe('Integration tests', function () {
   });
 
   describe('Messages', () => {
+    it('should fail if msg does not start with provided msgPrefix', async () => {
+      await expect(dl.signMSG(account, 'noprefix'))
+        .rejectedWith('6a80');
+    });
     it('it should generate valid signature', async () => {
-      const msg       = 'hey brothaaaar! There\'s an endless road to rediscover';
+      const msg       = `${msgPrefix}hey brothaaaar! There\'s an endless road to rediscover`;
       const signature = await dl.signMSG(account, msg);
       const res       = GenericWallet.verifyMessage(msg, signature, pubKey);
       expect(res).is.true;
     });
-    it('should generate a warning if data length is 32 bytes', async () => {
-      const msg = new Buffer(new Array(32).fill(1));
+    it('should show <binary data> if not printable', async () => {
+      const msg = Buffer.concat([
+        new Buffer(msgPrefix, 'ascii'),
+        new Buffer(new Array(32).fill(1))
+      ]);
       const signature = await dl.signMSG(account, msg);
       const res       = GenericWallet.verifyMessage(msg, signature, pubKey);
       expect(res).is.true;
     });
     it('should rewrite msg to binary data if more than 40% of data is non printable', async () => {
       const msg = Buffer.concat([
+        new Buffer(msgPrefix, 'ascii'),
         new Buffer('abcde', 'utf8'), // 6 bytes
         new Buffer('00000000', 'hex'), // 4 bytes
       ]);
@@ -67,6 +76,7 @@ describe('Integration tests', function () {
     });
     it('should rewrite msg to binary data if all text but first byte unprintable', async () => {
       const msg = Buffer.concat([
+        new Buffer(msgPrefix, 'ascii'),
         new Buffer('00', 'hex'), // 4 bytes,
         new Buffer('abcde', 'utf8'), // 6 bytes
       ]);
@@ -75,19 +85,19 @@ describe('Integration tests', function () {
       expect(res).is.true;
     });
     it('should gen valid signature for short message with newline', async () => {
-      const msg       = 'hey\nhi';
+      const msg       = `${msgPrefix}hey\nhi`;
       const signature = await dl.signMSG(account, msg);
       const res       = GenericWallet.verifyMessage(msg, signature, pubKey);
       expect(res).is.true;
     });
-    it('should gen valid signature for 174bytes message', async () => {
-      const msg       = new Array(175).fill('a').join('');
+    it('should gen valid signature for 175bytes message', async () => {
+      const msg       = `${msgPrefix}${new Array(175 - msgPrefix.length).fill('a').join('')}`;
       const signature = await dl.signMSG(account, msg);
       const res       = GenericWallet.verifyMessage(msg, signature, pubKey);
       expect(res).is.true;
     });
     it('should gen valid signature for 1KB message', async () => {
-      const msg       = new Array(1024).fill('0').join('');
+      const msg       = `${msgPrefix}${new Array(1024 - msgPrefix.length).fill('a').join('')}`;
       const signature = await dl.signMSG(account, msg);
       const res       = GenericWallet.verifyMessage(msg, signature, pubKey);
       expect(res).is.true;
@@ -351,6 +361,28 @@ describe('Integration tests', function () {
 
         await signAndVerify(tx);
       });
+      it('heavy multisig - min 12 - lifetime 24 with sign, second and requester', async () => {
+        // 983 bytes
+        const tx = new MultiSignatureTx({
+          multisignature: {
+            min      : 6,
+            lifetime : 24,
+            keysgroup: [pubKey, pubKey, pubKey, pubKey, pubKey, pubKey,
+              pubKey, pubKey, pubKey, pubKey, pubKey, pubKey]
+          }
+        })
+          .set('amount', 0)
+          .set('timestamp', 10)
+          .set('fee', 100)
+          .set('recipientId', '123456781230L')
+          .set('requesterPublicKey', pubKey)
+          .set('senderPublicKey', pubKey);
+
+        tx.signature       = 'e96c66573a67214867025fd478cadd363c0d558ef6d3e071dba4abfcb6cd01abfb78814544137191ac70fe4e44dcf922d638c7d963ce08ccd1acdc5f9113cf01';
+        tx.secondSignature = 'e96c66573a67214867025fd478cadd363c0d558ef6d3e071dba4abfcb6cd01abfb78814544137191ac70fe4e44dcf922d638c7d963ce08ccd1acdc5f9113cf01';
+
+        await signAndVerify(tx);
+      });
     });
 
     describe('secondsignature', () => {
@@ -441,8 +473,11 @@ describe('Integration tests', function () {
 
   describe('comm_errors', () => {
     // try to send 10KB+1 Bytes
-    it('should fail if we exceed 10KB', () => {
-      const buffer = Buffer.alloc(10*1024 + 1).fill('a');
+    it('should fail if we exceed 2500bytes', () => {
+      const buffer = Buffer.concat([
+        new Buffer(msgPrefix, 'ascii'),
+        Buffer.alloc(2501 - msgPrefix.length).fill('a'),
+      ]);
       return expect(dl.signMSG(account, buffer)).to.rejectedWith('6a84');
     });
     it('should fail if we exceed data size during comm', async () => {
