@@ -18,8 +18,29 @@ import TransportU2F from '@ledgerhq/hw-transport-u2f';
 import TransportNodeHid from '@ledgerhq/hw-transport-node-hid';
 import { isBrowser, isNode } from 'browser-or-node';
 import { ITransport } from '../../src/ledger';
+import { encode as encodeVarInt } from 'varuint-bitcoin';
+import * as crypto from 'crypto';
 
 chai.use(chaiAsPromised);
+
+function verifySignedMessage(prefix: string, message: string | Buffer, signature: Buffer, pubKey: string): boolean {
+  const prefixBuf = Buffer.from(prefix, 'utf8');
+  const msgBuf    = Buffer.isBuffer(message) ? message : Buffer.from(message, 'utf8');
+  const buf       = Buffer.concat([
+    encodeVarInt(prefixBuf.length),
+    prefixBuf,
+    encodeVarInt(msgBuf.length),
+    msgBuf,
+  ]);
+
+  console.log(JSON.stringify(buf.toString('utf8')));
+  const firstSha        = crypto.createHash('sha256').update(buf).digest();
+  const signablePayload = crypto.createHash('sha256').update(firstSha).digest();
+
+  console.log(firstSha.toString('hex'));
+  console.log(signablePayload.toString('hex'));
+  return GenericWallet.verifyMessage(signablePayload, Buffer.concat([signature, signablePayload]), pubKey);
+}
 
 describe('Integration tests', function () {
   this.timeout(150222200);
@@ -40,67 +61,62 @@ describe('Integration tests', function () {
     account   = new LedgerAccount();
     const res = await dl.getPubKey(account);
     expect(res.publicKey).to.match(/^[a-z0-9]{64}$/);
-    pubKey = res.publicKey;
+    pubKey  = res.publicKey;
     address = res.address;
   });
 
   describe('Messages', () => {
-    it('should fail if msg does not start with provided msgPrefix', async () => {
-      await expect(dl.signMSG(account, 'noprefix'))
-        .rejectedWith('6a80');
-    });
     it('it should generate valid signature', async () => {
-      const msg       = `${msgPrefix}hey brothaaaar! There\'s an endless road to rediscover`;
+      const msg       = `aaaaaaaaab`;
       const signature = await dl.signMSG(account, msg);
-      const res       = GenericWallet.verifyMessage(msg, signature, pubKey);
+
+      console.log(JSON.stringify(signature.toString('hex')));
+      const res = verifySignedMessage(msgPrefix, msg, signature, pubKey);
       expect(res).is.true;
     });
     it('should show <binary data> if not printable', async () => {
-      const msg = Buffer.concat([
-        new Buffer(msgPrefix, 'ascii'),
-        new Buffer(new Array(32).fill(1))
+      const msg       = Buffer.concat([
+        new Buffer(new Array(32).fill(1)),
       ]);
       const signature = await dl.signMSG(account, msg);
-      const res       = GenericWallet.verifyMessage(msg, signature, pubKey);
+      const res       = verifySignedMessage(msgPrefix, msg, signature, pubKey);
       expect(res).is.true;
     });
     it('should rewrite msg to binary data if more than 40% of data is non printable', async () => {
-      const msg = Buffer.concat([
-        new Buffer(msgPrefix, 'ascii'),
+      const msg       = Buffer.concat([
         new Buffer('abcde', 'utf8'), // 6 bytes
         new Buffer('00000000', 'hex'), // 4 bytes
       ]);
       const signature = await dl.signMSG(account, msg);
-      const res       = GenericWallet.verifyMessage(msg, signature, pubKey);
+      const res       = verifySignedMessage(msgPrefix, msg, signature, pubKey);
       expect(res).is.true;
     });
     it('should rewrite msg to binary data if all text but first byte unprintable', async () => {
-      const msg = Buffer.concat([
-        new Buffer(msgPrefix, 'ascii'),
+      const msg       = Buffer.concat([
         new Buffer('00', 'hex'), // 4 bytes,
         new Buffer('abcde', 'utf8'), // 6 bytes
       ]);
       const signature = await dl.signMSG(account, msg);
-      const res       = GenericWallet.verifyMessage(msg, signature, pubKey);
+      const res       = verifySignedMessage(msgPrefix, msg, signature, pubKey);
       expect(res).is.true;
     });
     it('should gen valid signature for short message with newline', async () => {
-      const msg       = `${msgPrefix}hey\nhi`;
+      const msg       = 'hey\nhi';
       const signature = await dl.signMSG(account, msg);
-      const res       = GenericWallet.verifyMessage(msg, signature, pubKey);
+      const res       = verifySignedMessage(msgPrefix, msg, signature, pubKey);
       expect(res).is.true;
     });
-    it('should gen valid signature for 175bytes message', async () => {
-      const msg       = `${msgPrefix}${new Array(175 - msgPrefix.length).fill('a').join('')}`;
+    it('should gen valid signature for 1000-prefix-4 message', async () => {
+      const msg       = `${new Array(1000 - msgPrefix.length - 4).fill(null)
+        .map(() => String.fromCharCode('a'.charCodeAt(0) + Math.ceil(Math.random() * 21)))
+        .join('')}`;
       const signature = await dl.signMSG(account, msg);
-      const res       = GenericWallet.verifyMessage(msg, signature, pubKey);
+      const res       = verifySignedMessage(msgPrefix, msg, signature, pubKey);
       expect(res).is.true;
     });
-    it('should gen valid signature for 1KB message', async () => {
-      const msg       = `${msgPrefix}${new Array(1024 - msgPrefix.length).fill('a').join('')}`;
-      const signature = await dl.signMSG(account, msg);
-      const res       = GenericWallet.verifyMessage(msg, signature, pubKey);
-      expect(res).is.true;
+    it('should gen failure 1000-prefix-3 message', async () => {
+      const msg = `${new Array(1000 - msgPrefix.length - 3).fill('a').join('')}`;
+      await expect(dl.signMSG(account, msg)).rejectedWith('6a80');
     });
 
   });
@@ -117,16 +133,6 @@ describe('Integration tests', function () {
       const verified  = sodium.crypto_sign_verify_detached(signature, tx.getHash(), new Buffer(pubKey, 'hex'));
       expect(verified).is.true;
     };
-    it('send', async () => {
-      const tx = new SendTx()
-        .set('amount', 10)
-        .set('timestamp', 10)
-        .set('fee', 100)
-        .set('recipientId', '123456781230L')
-        .set('senderPublicKey', pubKey);
-
-      await signAndVerify(tx);
-    });
     describe('votes', () => {
       it('vote with 25 added and 8 removed.', async () => {
         const tx = new VoteTx({
@@ -310,6 +316,16 @@ describe('Integration tests', function () {
 
         await signAndVerify(tx);
       });
+      it('should sign with message', async () => {
+        const tx = new SendTx({data: 'hey brotha :)'})
+          .set('amount', 851000000)
+          .set('timestamp', 10)
+          .set('fee', 10000000)
+          .set('recipientId', '15610359283786884938L')
+          .set('senderPublicKey', pubKey);
+
+        await signAndVerify(tx);
+      });
       it('should work with sign, secondSign, requesterPublicKey', async () => {
         const tx = new SendTx()
           .set('amount', 851000000)
@@ -446,16 +462,16 @@ describe('Integration tests', function () {
     });
 
     it('returned publicKeys should match returned addresses', async () => {
-        for (let acc = 0; acc < 3; acc++) {
-          for (let index = 0; index < 3; index++) {
-            const { publicKey, address } = await dl.getPubKey(account
-              .coinIndex(SupportedCoin.LISK)
-              .account(acc + 200)
-            );
+      for (let acc = 0; acc < 3; acc++) {
+        for (let index = 0; index < 3; index++) {
+          const { publicKey, address } = await dl.getPubKey(account
+            .coinIndex(SupportedCoin.LISK)
+            .account(acc + 200)
+          );
 
-            expect(publicKey.length).to.be.eq(64);
-            expect(dposOffline.utils.deriveDPOSAddress(publicKey, 'D')).to.be.eq(address);
-          }
+          expect(publicKey.length).to.be.eq(64);
+          expect(dposOffline.utils.deriveDPOSAddress(publicKey, 'D')).to.be.eq(address);
+        }
       }
     });
 
@@ -467,7 +483,7 @@ describe('Integration tests', function () {
   it('version() should return version', async () => {
     expect(await dl.version()).to.be.deep.eq({
       version: '1.0.0',
-      coinID: 'all'
+      coinID : 'all'
     });
   });
 

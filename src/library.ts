@@ -110,8 +110,7 @@ export class DposLedger {
    */
   public async signMSG(account: LedgerAccount | Buffer, what: string | Buffer) {
     const buffer: Buffer = typeof(what) === 'string' ? new Buffer(what, 'utf8') : what;
-    const signature      = await this.sign(0x06, account, buffer);
-    return Buffer.concat([signature, buffer]);
+    return this.sign(0x06, account, buffer);
   }
 
   /**
