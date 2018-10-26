@@ -19,10 +19,8 @@
   "author": "Andrea <vekexasia@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "@lisk-builders/lisk-hd-key": "^1.0.0-rc.0",
     "bip32-path": "^0.4.2",
-    "crc": "^3.5.0",
-    "varuint-bitcoin": "^1.1.0"
+    "crc": "^3.5.0"
   },
   "devDependencies": {
     "@ledgerhq/hw-transport-node-hid": "^4.22.0",
@@ -59,6 +57,7 @@
     "typedoc-plugin-internal-external": "^1.0.9",
     "typescript": "^2.7.2",
     "uglifyjs-webpack-plugin": "^0.4.3",
+    "varuint-bitcoin": "^1.1.0",
     "webpack": "^2.7.0"
   }
 }
