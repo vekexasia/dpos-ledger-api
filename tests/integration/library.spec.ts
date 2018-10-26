@@ -19,7 +19,7 @@ import TransportNodeHid from '@ledgerhq/hw-transport-node-hid';
 import { isBrowser, isNode } from 'browser-or-node';
 import { ITransport } from '../../src/ledger';
 import { encode as encodeVarInt } from 'varuint-bitcoin';
-import * as crypto from 'crypto';
+import { sha256 } from 'js-sha256';
 
 chai.use(chaiAsPromised);
 
@@ -33,12 +33,9 @@ function verifySignedMessage(prefix: string, message: string | Buffer, signature
     msgBuf,
   ]);
 
-  console.log(JSON.stringify(buf.toString('utf8')));
-  const firstSha        = crypto.createHash('sha256').update(buf).digest();
-  const signablePayload = crypto.createHash('sha256').update(firstSha).digest();
+  const firstSha        = Buffer.from(sha256(buf), 'hex');
+  const signablePayload = Buffer.from(sha256(firstSha), 'hex');
 
-  console.log(firstSha.toString('hex'));
-  console.log(signablePayload.toString('hex'));
   return GenericWallet.verifyMessage(signablePayload, Buffer.concat([signature, signablePayload]), pubKey);
 }
 

@@ -4,8 +4,8 @@ const path           = require('path');
 const commonConfig = {
   entry  : './src/index.ts',
   node: {
-    fs: 'empty'
-
+    fs: 'empty',
+    child_process: 'empty',
   },
   output : {
     filename     : 'index.js',
@@ -29,8 +29,11 @@ const commonConfig = {
     alias     : {
     }
   },
+  externals: {
+    '@ledgerhq/hw-transport-node-hid': 'vekexasia rulez'
+  },
   plugins: [
-    new UglifyJSPlugin({ comments: false, })
+    new UglifyJSPlugin({ comments: false, }),
   ]
 };
 module.exports     = [

@@ -36,6 +36,7 @@
     "coveralls": "^3.0.0",
     "dpos-offline": "^1.6.3",
     "is-empty": "^1.2.0",
+    "js-sha256": "^0.9.0",
     "karma": "^2.0.0",
     "karma-chai": "^0.1.0",
     "karma-chrome-launcher": "^2.2.0",
