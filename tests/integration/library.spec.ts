@@ -46,7 +46,7 @@ describe('Integration tests', function () {
   let pubKey: string;
   let address: string;
   let transport: ITransport;
-  const msgPrefix = 'dPoS Signed Message:\n';
+  const msgPrefix = 'Lisk Signed Message:\n';
   before(async () => {
     transport = await (isBrowser ? TransportU2F.create() : TransportNodeHid.create());
     dl        = new DposLedger(transport);
@@ -56,17 +56,16 @@ describe('Integration tests', function () {
 
   beforeEach(async () => {
     account   = new LedgerAccount();
-    const res = await dl.getPubKey(account);
-    expect(res.publicKey).to.match(/^[a-z0-9]{64}$/);
-    pubKey  = res.publicKey;
-    address = res.address;
+    // const res = await dl.getPubKey(account);
+    // expect(res.publicKey).to.match(/^[a-z0-9]{64}$/);
+    // pubKey  = res.publicKey;
+    // address = res.address;
   });
 
   describe('Messages', () => {
     it('it should generate valid signature', async () => {
       const msg       = `aaaaaaaaab`;
       const signature = await dl.signMSG(account, msg);
-
       console.log(JSON.stringify(signature.toString('hex')));
       const res = verifySignedMessage(msgPrefix, msg, signature, pubKey);
       expect(res).is.true;
@@ -109,6 +108,11 @@ describe('Integration tests', function () {
         .join('')}`;
       const signature = await dl.signMSG(account, msg);
       const res       = verifySignedMessage(msgPrefix, msg, signature, pubKey);
+      console.log(JSON.stringify({
+        message: msg,
+        ... await dl.getPubKey(account),
+        signature: signature.toString('hex')
+      }, null, 2));
       expect(res).is.true;
     });
     it('should gen failure 1000-prefix-3 message', async () => {

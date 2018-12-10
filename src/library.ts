@@ -179,13 +179,14 @@ export class DposLedger {
     const chunkDataSize = this.chunkSize;
     const nChunks       = Math.ceil(inputBuffer.length / chunkDataSize);
 
+    let prevCRC = 0;
     for (let i = 0; i < nChunks; i++) {
       const dataSize = Math.min(inputBuffer.length, (i + 1) * chunkDataSize) - i * chunkDataSize;
 
       // copy chunk data
       const dataBuffer = inputBuffer.slice(i * chunkDataSize, i * chunkDataSize + dataSize);
 
-      const [ledgerCRC16] = this.decomposeResponse(
+      const [curCRC, prevCRCLedger] = this.decomposeResponse(
         await this.transport.send(
           0xe0,
           90,
@@ -194,16 +195,24 @@ export class DposLedger {
           dataBuffer
         )
       );
-      const crc           = crc16(inputBuffer.slice(0, i * chunkDataSize + dataSize));
-      const receivedCRC   = ledgerCRC16.readUInt16LE(0);
+      const crc           = crc16(dataBuffer);
+      const receivedCRC   = curCRC.readUInt16LE(0);
 
       if (crc !== receivedCRC) {
         throw new Error('Something went wrong during CRC validation');
       }
 
+      if (prevCRCLedger.readUInt16LE(0) !== prevCRC) {
+        throw new Error('Prev CRC is not valid');
+      }
+
+      prevCRC = crc;
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
+    console.log('closing');
     // Close comm flow.
     const resBuf = await this.transport.send(0xe0, 91, 0, 0);
+    console.log('closed');
     return this.decomposeResponse(resBuf);
   }
 
