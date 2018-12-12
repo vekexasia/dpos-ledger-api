@@ -1,5 +1,6 @@
 import * as crc16 from 'crc/lib/crc16_ccitt';
 import { LedgerAccount } from './account';
+import { IProgressListener } from './IProgressListener';
 import { ITransport } from './ledger';
 
 /**
@@ -18,6 +19,8 @@ import { ITransport } from './ledger';
  * ```
  */
 export class DposLedger {
+
+  public progressListener: IProgressListener = null;
 
   /**
    * @param {ITransport} transport transport class.
@@ -173,6 +176,10 @@ export class DposLedger {
     const startCommBuffer = Buffer.alloc(2);
     startCommBuffer.writeUInt16BE(inputBuffer.length, 0);
 
+    if (this.progressListener) {
+      this.progressListener.onStart();
+    }
+
     await this.transport.send(0xe0, 89, 0, 0, startCommBuffer);
 
     // Calculate number of chunks to send.
@@ -207,12 +214,18 @@ export class DposLedger {
       }
 
       prevCRC = crc;
-      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      if (this.progressListener) {
+        this.progressListener.onChunkProcessed(dataBuffer);
+      }
     }
-    console.log('closing');
     // Close comm flow.
     const resBuf = await this.transport.send(0xe0, 91, 0, 0);
-    console.log('closed');
+
+    if (this.progressListener) {
+      this.progressListener.onEnd();
+    }
+
     return this.decomposeResponse(resBuf);
   }
 

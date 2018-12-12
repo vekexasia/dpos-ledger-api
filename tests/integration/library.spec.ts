@@ -33,8 +33,13 @@ function verifySignedMessage(prefix: string, message: string | Buffer, signature
     msgBuf,
   ]);
 
+  console.log(encodeVarInt(prefixBuf.length));
+  console.log(encodeVarInt(msgBuf.length));
+
   const firstSha        = Buffer.from(sha256(buf), 'hex');
+  console.log('1', firstSha.toString('hex'));
   const signablePayload = Buffer.from(sha256(firstSha), 'hex');
+  console.log('2', signablePayload.toString('hex'));
 
   return GenericWallet.verifyMessage(signablePayload, Buffer.concat([signature, signablePayload]), pubKey);
 }
@@ -46,7 +51,7 @@ describe('Integration tests', function () {
   let pubKey: string;
   let address: string;
   let transport: ITransport;
-  const msgPrefix = 'Lisk Signed Message:\n';
+  const msgPrefix = 'dPoS Signed Message:\n';
   before(async () => {
     transport = await (isBrowser ? TransportU2F.create() : TransportNodeHid.create());
     dl        = new DposLedger(transport);
@@ -56,17 +61,20 @@ describe('Integration tests', function () {
 
   beforeEach(async () => {
     account   = new LedgerAccount();
-    // const res = await dl.getPubKey(account);
-    // expect(res.publicKey).to.match(/^[a-z0-9]{64}$/);
-    // pubKey  = res.publicKey;
-    // address = res.address;
+    const res = await dl.getPubKey(account);
+    expect(res.publicKey).to.match(/^[a-z0-9]{64}$/);
+    pubKey  = res.publicKey;
+    address = res.address;
   });
 
   describe('Messages', () => {
     it('it should generate valid signature', async () => {
-      const msg       = `aaaaaaaaab`;
+      // const msg       = new Array(20 * 1024).fill('a').join('');
+      const msg       = 'merda';
       const signature = await dl.signMSG(account, msg);
-      console.log(JSON.stringify(signature.toString('hex')));
+      // const signature = Buffer.from('c3839acd2b9ffdbbcccd8dde8d200365590cc0faf504724180b6c0cf0b72e334189e6819c815e46ef63bc0f87c7126557ba63328784f90718e7fb4a1d2383004', 'hex');
+      // console.log(JSON.stringify(signature.toString('hex')));
+      // const signature = Buffer.alloc(10);
       const res = verifySignedMessage(msgPrefix, msg, signature, pubKey);
       expect(res).is.true;
     });
