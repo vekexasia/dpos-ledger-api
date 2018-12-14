@@ -335,6 +335,19 @@ describe('Integration tests', function () {
 
         await signAndVerify(tx);
       });
+      it('should sign with message and signature with printable chars `ab` as start', async () => {
+        const tx = new SendTx({data: 'hey brotha :)'})
+          .set('amount', 851000000)
+          .set('timestamp', 10)
+          .set('fee', 10000000)
+          .set('recipientId', '15610359283786884938L')
+          .set('senderPublicKey', pubKey);
+
+        tx.signature       = '616266573a67214867025fd478cadd363c0d558ef6d3e071dba4abfcb6cd01abfb78814544137191ac70fe4e44dcf922d638c7d963ce08ccd1acdc5f9113cf01';
+
+        await signAndVerify(tx);
+      });
+
       it('should work with sign, secondSign, requesterPublicKey', async () => {
         const tx = new SendTx()
           .set('amount', 851000000)
