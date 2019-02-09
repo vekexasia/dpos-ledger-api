@@ -237,7 +237,7 @@ export class DposLedger {
    * @param {boolean} hasRequesterPKey if it has a requesterpublickey (used only in tx signing mode)
    * @returns {Promise<Buffer>} the signature
    */
-  private async sign(
+  protected async sign(
     signType: number,
     account: LedgerAccount | Buffer,
     buff: Buffer,
@@ -266,7 +266,7 @@ export class DposLedger {
    * @param {Buffer} resBuf response from ledger
    * @returns {Array<Buffer>} decomposed response.
    */
-  private decomposeResponse(resBuf: Buffer): Buffer[] {
+  protected decomposeResponse(resBuf: Buffer): Buffer[] {
     const totalElements   = resBuf.readInt8(0);
     const toRet: Buffer[] = [];
     let index             = 1; // 1 read uint8_t
