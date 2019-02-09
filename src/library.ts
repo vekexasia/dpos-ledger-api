@@ -1,5 +1,6 @@
 import * as crc16 from 'crc/lib/crc16_ccitt';
 import { LedgerAccount } from './account';
+import { IProgressListener } from './IProgressListener';
 import { ITransport } from './ledger';
 
 /**
@@ -18,6 +19,8 @@ import { ITransport } from './ledger';
  * ```
  */
 export class DposLedger {
+
+  public progressListener: IProgressListener = null;
 
   /**
    * @param {ITransport} transport transport class.
@@ -173,19 +176,24 @@ export class DposLedger {
     const startCommBuffer = Buffer.alloc(2);
     startCommBuffer.writeUInt16BE(inputBuffer.length, 0);
 
+    if (this.progressListener) {
+      this.progressListener.onStart();
+    }
+
     await this.transport.send(0xe0, 89, 0, 0, startCommBuffer);
 
     // Calculate number of chunks to send.
     const chunkDataSize = this.chunkSize;
     const nChunks       = Math.ceil(inputBuffer.length / chunkDataSize);
 
+    let prevCRC = 0;
     for (let i = 0; i < nChunks; i++) {
       const dataSize = Math.min(inputBuffer.length, (i + 1) * chunkDataSize) - i * chunkDataSize;
 
       // copy chunk data
       const dataBuffer = inputBuffer.slice(i * chunkDataSize, i * chunkDataSize + dataSize);
 
-      const [ledgerCRC16] = this.decomposeResponse(
+      const [curCRC, prevCRCLedger] = this.decomposeResponse(
         await this.transport.send(
           0xe0,
           90,
@@ -194,16 +202,30 @@ export class DposLedger {
           dataBuffer
         )
       );
-      const crc           = crc16(inputBuffer.slice(0, i * chunkDataSize + dataSize));
-      const receivedCRC   = ledgerCRC16.readUInt16LE(0);
+      const crc           = crc16(dataBuffer);
+      const receivedCRC   = curCRC.readUInt16LE(0);
 
       if (crc !== receivedCRC) {
         throw new Error('Something went wrong during CRC validation');
       }
 
+      if (prevCRCLedger.readUInt16LE(0) !== prevCRC) {
+        throw new Error('Prev CRC is not valid');
+      }
+
+      prevCRC = crc;
+
+      if (this.progressListener) {
+        this.progressListener.onChunkProcessed(dataBuffer);
+      }
     }
     // Close comm flow.
     const resBuf = await this.transport.send(0xe0, 91, 0, 0);
+
+    if (this.progressListener) {
+      this.progressListener.onEnd();
+    }
+
     return this.decomposeResponse(resBuf);
   }
 

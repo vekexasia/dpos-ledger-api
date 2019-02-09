@@ -33,8 +33,13 @@ function verifySignedMessage(prefix: string, message: string | Buffer, signature
     msgBuf,
   ]);
 
+  console.log(encodeVarInt(prefixBuf.length));
+  console.log(encodeVarInt(msgBuf.length));
+
   const firstSha        = Buffer.from(sha256(buf), 'hex');
+  console.log('1', firstSha.toString('hex'));
   const signablePayload = Buffer.from(sha256(firstSha), 'hex');
+  console.log('2', signablePayload.toString('hex'));
 
   return GenericWallet.verifyMessage(signablePayload, Buffer.concat([signature, signablePayload]), pubKey);
 }
@@ -64,10 +69,12 @@ describe('Integration tests', function () {
 
   describe('Messages', () => {
     it('it should generate valid signature', async () => {
-      const msg       = `aaaaaaaaab`;
+      // const msg       = new Array(20 * 1024).fill('a').join('');
+      const msg       = 'merda';
       const signature = await dl.signMSG(account, msg);
-
-      console.log(JSON.stringify(signature.toString('hex')));
+      // const signature = Buffer.from('c3839acd2b9ffdbbcccd8dde8d200365590cc0faf504724180b6c0cf0b72e334189e6819c815e46ef63bc0f87c7126557ba63328784f90718e7fb4a1d2383004', 'hex');
+      // console.log(JSON.stringify(signature.toString('hex')));
+      // const signature = Buffer.alloc(10);
       const res = verifySignedMessage(msgPrefix, msg, signature, pubKey);
       expect(res).is.true;
     });
@@ -109,6 +116,11 @@ describe('Integration tests', function () {
         .join('')}`;
       const signature = await dl.signMSG(account, msg);
       const res       = verifySignedMessage(msgPrefix, msg, signature, pubKey);
+      console.log(JSON.stringify({
+        message: msg,
+        ... await dl.getPubKey(account),
+        signature: signature.toString('hex')
+      }, null, 2));
       expect(res).is.true;
     });
     it('should gen failure 1000-prefix-3 message', async () => {
@@ -323,6 +335,19 @@ describe('Integration tests', function () {
 
         await signAndVerify(tx);
       });
+      it('should sign with message and signature with printable chars `ab` as start', async () => {
+        const tx = new SendTx({data: 'hey brotha :)'})
+          .set('amount', 851000000)
+          .set('timestamp', 10)
+          .set('fee', 10000000)
+          .set('recipientId', '15610359283786884938L')
+          .set('senderPublicKey', pubKey);
+
+        tx.signature       = '616266573a67214867025fd478cadd363c0d558ef6d3e071dba4abfcb6cd01abfb78814544137191ac70fe4e44dcf922d638c7d963ce08ccd1acdc5f9113cf01';
+
+        await signAndVerify(tx);
+      });
+
       it('should work with sign, secondSign, requesterPublicKey', async () => {
         const tx = new SendTx()
           .set('amount', 851000000)

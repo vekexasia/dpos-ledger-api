@@ -27,10 +27,13 @@ describe('library', () => {
   });
   function buildCommProtocol(data: Buffer, finalResp: Buffer[] = [new Buffer('aa', 'hex')], chunkSize: number = 240) {
     const chunks  = Math.ceil(data.length / chunkSize);
-    const crcBuff = new Buffer('0102000000', 'hex');
+    const crcBuff = new Buffer('020200000002000000', 'hex');
+    let prevCRC = 0;
     for (let i = 0; i < chunks; i++) {
-      crcBuff.writeUInt16LE(crc16(data.slice(0, (i + 1) * chunkSize)), 3);
+      crcBuff.writeUInt16LE(crc16(data.slice(i * chunkSize, (i + 1) * chunkSize)), 3);
+      crcBuff.writeUInt16LE(prevCRC, 7);
       commSendStub.onCall(i + 1).resolves(new Buffer(crcBuff));
+      prevCRC = crc16(data.slice(i * chunkSize, (i + 1) * chunkSize));
     }
 
     // Final response result
@@ -355,6 +358,44 @@ describe('library', () => {
         version: '1.0.0',
         coinID: 'dPoS'
       });
+    });
+  });
+
+  describe('progress', () => {
+    it('should report multiple chunks of data (properly splitted)', async () => {
+      const buffer = new Buffer(1024);
+      for (let i = 0; i < buffer.length; i++) {
+        buffer.writeUInt8(i % 256, i);
+      }
+      buildCommProtocol(buffer);
+      instance.progressListener = {
+        onStart(): void {
+        },
+        onChunkProcessed(chunk: Buffer): void {
+        },
+        onEnd(): void {
+        },
+      };
+
+      const startSpy = sinon.spy(instance.progressListener, 'onStart');
+      const chunkSpy = sinon.spy(instance.progressListener, 'onChunkProcessed');
+      const endSpy = sinon.spy(instance.progressListener, 'onEnd');
+
+      await instance.exchange(buffer);
+
+      expect(startSpy.calledOnce).is.true;
+      expect(commSendStub.callCount).to.be.gt(2);
+      let read = 0;
+      for (let i = 0; i < commSendStub.callCount - 2; i++) {
+        const call = commSendStub.getCall(i + 1);
+
+        const sent = call.args[4].length;
+
+        expect(chunkSpy.getCall(i).args[0]).deep.eq(new Buffer(buffer.slice(read, sent + read)));
+
+        read += sent;
+      }
+      expect(endSpy.calledOnce).is.true;
     });
   });
 });
