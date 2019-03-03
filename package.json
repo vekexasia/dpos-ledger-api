@@ -1,6 +1,6 @@
 {
   "name": "dpos-ledger-api",
-  "version": "2.0.1",
+  "version": "3.0.0",
   "description": "This library eases the interaction with the corresponding ledger nano implementation",
   "main": "dist/es5/index.js",
   "types": "dist/es5/index.d.ts",
