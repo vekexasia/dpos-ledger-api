@@ -38,7 +38,7 @@ This library, and the ledger app, have been tested with `@ledgerhq/hw-transport-
 import TransportU2F from '@ledgerhq/hw-transport-u2f';
 import TransportNodeHid from '@ledgerhq/hw-transport-node-hid';
 import { isBrowser, isNode } from 'browser-or-node';
-import { DposLedger } from 'dpos-ledger-api';
+import { DposLedge, CommHandler } from 'dpos-ledger-api';
 
 let transportMethod;
 if (isBrowser) {
@@ -50,7 +50,7 @@ if (isBrowser) {
 }
 
 transportMethod.create()
-	.then((transport) => new DposLedger(transport));
+	.then((transport) => new DposLedger(new CommHandler(transport)))
 	.then((instance) => {
 	    // ..
 	});

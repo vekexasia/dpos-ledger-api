@@ -14,10 +14,14 @@ export enum SupportedCoin {
   RISE = 1120,
 }
 
+export interface ILedgerAccount {
+  derivePath(): Buffer;
+}
+
 /**
  * Defines an Account to be used when communicating with ledger
  */
-export class LedgerAccount {
+export class LedgerAccount implements ILedgerAccount {
   // tslint:disable variable-name
   private _account: number   = 0;
   private _coinIndex: SupportedCoin = SupportedCoin.LISK; // LISK

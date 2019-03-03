@@ -1,7 +1,5 @@
-import * as crc16 from 'crc/lib/crc16_ccitt';
 import { LedgerAccount } from './account';
-import { IProgressListener } from './IProgressListener';
-import { ITransport } from './ledger';
+import { CommHandler } from './commHandler';
 
 /**
  * Communication Protocol class.
@@ -20,24 +18,10 @@ import { ITransport } from './ledger';
  */
 export class DposLedger {
 
-  public progressListener: IProgressListener = null;
-
   /**
-   * @param {ITransport} transport transport class.
-   * @param {number} chunkSize lets you specify the chunkSize for each communication.<br/>
-   * <strong>DO not</strong> change if you don't know what you're doing.
+   * @param {CommHandler} commHandler communication handler
    */
-  constructor(private transport: ITransport, private chunkSize: number = 240) {
-    if (chunkSize > 240) {
-      throw new Error('Chunk size cannot exceed 240');
-    }
-    if (chunkSize < 1) {
-      throw new Error('Chunk size cannot be less than 1');
-    }
-    if (transport === null || typeof(transport) === 'undefined') {
-      throw new Error('Transport cannot be empty');
-    }
-    transport.setScrambleKey('vekexasia');
+  constructor(private commHandler: CommHandler) {
   }
 
   /**
@@ -58,7 +42,7 @@ export class DposLedger {
   // tslint:disable-next-line max-line-length
   public async getPubKey(account: LedgerAccount | Buffer, showOnLedger: boolean = false): Promise<{ publicKey: string, address: string }> {
     const pathBuf = Buffer.isBuffer(account) ? account : account.derivePath();
-    const resp    = await this.exchange([
+    const resp    = await this.commHandler.exchange([
       0x04,
       showOnLedger ? 0x1 : 0x0,
       (pathBuf.length / 4),
@@ -90,8 +74,8 @@ export class DposLedger {
    *   });
    * ```
    */
-  public signTX(account: LedgerAccount | Buffer, buff: Buffer, hasRequesterPKey: boolean = false) {
-    return this.sign(0x05, account, buff, hasRequesterPKey);
+  public signTX(account: LedgerAccount | Buffer, buff: Buffer) {
+    return this.sign(0x05, account, buff);
   }
 
   /**
@@ -130,7 +114,7 @@ export class DposLedger {
    * ```
    */
   public async version(): Promise<{ version: string, coinID: string }> {
-    const [version, coinID] = await this.exchange(0x09);
+    const [version, coinID] = await this.commHandler.exchange(0x09);
     return {
       coinID : coinID.toString('ascii'),
       version: version.toString('ascii'),
@@ -142,91 +126,10 @@ export class DposLedger {
    * @returns {Promise<void>}
    */
   public async ping(): Promise<void> {
-    const [res] = await this.exchange(0x08);
+    const [res] = await this.commHandler.exchange(0x08);
     if (res.toString('ascii') !== 'PONG') {
       throw new Error('Didnt receive PONG');
     }
-  }
-
-  /**
-   * Raw exchange protocol handling. It's exposed but it is meant for internal usage only.
-   * @param {string | Buffer} hexData
-   * @returns {Promise<Buffer[]>} Raw response buffers.
-   */
-  public async exchange(hexData: string | Buffer | number | Array<(string | Buffer | number)>): Promise<Buffer[]> {
-    let inputBuffer: Buffer;
-    if (Array.isArray(hexData)) {
-      inputBuffer = Buffer.concat(hexData.map((item) => {
-        if (typeof(item) === 'string') {
-          return new Buffer(item, 'hex');
-        } else if (typeof(item) === 'number') {
-          return Buffer.alloc(1).fill(item);
-        }
-        return item;
-      }));
-    } else if (typeof(hexData) === 'string') {
-      inputBuffer = new Buffer(hexData, 'hex');
-    } else if (typeof(hexData) === 'number') {
-      inputBuffer = Buffer.alloc(1).fill(hexData);
-    } else {
-      inputBuffer = hexData;
-    }
-
-    // Send start comm packet
-    const startCommBuffer = Buffer.alloc(2);
-    startCommBuffer.writeUInt16BE(inputBuffer.length, 0);
-
-    if (this.progressListener) {
-      this.progressListener.onStart();
-    }
-
-    await this.transport.send(0xe0, 89, 0, 0, startCommBuffer);
-
-    // Calculate number of chunks to send.
-    const chunkDataSize = this.chunkSize;
-    const nChunks       = Math.ceil(inputBuffer.length / chunkDataSize);
-
-    let prevCRC = 0;
-    for (let i = 0; i < nChunks; i++) {
-      const dataSize = Math.min(inputBuffer.length, (i + 1) * chunkDataSize) - i * chunkDataSize;
-
-      // copy chunk data
-      const dataBuffer = inputBuffer.slice(i * chunkDataSize, i * chunkDataSize + dataSize);
-
-      const [curCRC, prevCRCLedger] = this.decomposeResponse(
-        await this.transport.send(
-          0xe0,
-          90,
-          0,
-          0,
-          dataBuffer
-        )
-      );
-      const crc           = crc16(dataBuffer);
-      const receivedCRC   = curCRC.readUInt16LE(0);
-
-      if (crc !== receivedCRC) {
-        throw new Error('Something went wrong during CRC validation');
-      }
-
-      if (prevCRCLedger.readUInt16LE(0) !== prevCRC) {
-        throw new Error('Prev CRC is not valid');
-      }
-
-      prevCRC = crc;
-
-      if (this.progressListener) {
-        this.progressListener.onChunkProcessed(dataBuffer);
-      }
-    }
-    // Close comm flow.
-    const resBuf = await this.transport.send(0xe0, 91, 0, 0);
-
-    if (this.progressListener) {
-      this.progressListener.onEnd();
-    }
-
-    return this.decomposeResponse(resBuf);
   }
 
   /**
@@ -240,20 +143,19 @@ export class DposLedger {
   protected async sign(
     signType: number,
     account: LedgerAccount | Buffer,
-    buff: Buffer,
-    hasRequesterPKey: boolean = false): Promise<Buffer> {
+    buff: Buffer): Promise<Buffer> {
 
     const pathBuf    = Buffer.isBuffer(account) ? account : account.derivePath();
     const buffLength = new Buffer(2);
     buffLength.writeUInt16BE(buff.length, 0);
-    const args        = await this.exchange([
+    const args        = await this.commHandler.exchange([
       signType, // sign
       // Bip32
       (pathBuf.length / 4),
       pathBuf,
       // headers
       buffLength,
-      hasRequesterPKey ? 0x01 : 0x00,
+      0x00, // Old hasRequesterPubKey
       // data
       buff,
     ]);
@@ -261,23 +163,4 @@ export class DposLedger {
     return signature;
   }
 
-  /**
-   * Internal utility to decompose the ledger response as protocol definition.
-   * @param {Buffer} resBuf response from ledger
-   * @returns {Array<Buffer>} decomposed response.
-   */
-  protected decomposeResponse(resBuf: Buffer): Buffer[] {
-    const totalElements   = resBuf.readInt8(0);
-    const toRet: Buffer[] = [];
-    let index             = 1; // 1 read uint8_t
-
-    for (let i = 0; i < totalElements; i++) {
-      const elLength = resBuf.readInt16LE(index);
-      index += 2;
-      toRet.push(resBuf.slice(index, index + elLength));
-      index += elLength;
-    }
-
-    return toRet;
-  }
 }
