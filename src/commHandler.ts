@@ -49,14 +49,8 @@ export class CommHandler {
     }
 
     // Send start comm packet
-    const startCommBuffer = Buffer.alloc(2);
-    startCommBuffer.writeUInt16BE(inputBuffer.length, 0);
-
-    if (this.progressListener) {
-      this.progressListener.onStart();
-    }
-
-    await this.transport.send(0xe0, 89, 0, 0, startCommBuffer);
+    const startCommBuff = this.prepareStartCommBufferContent(inputBuffer);
+    await this.transport.send(0xe0, 89, 0, 0, startCommBuff);
 
     // Calculate number of chunks to send.
     const chunkDataSize = this.chunkSize;
@@ -103,6 +97,12 @@ export class CommHandler {
     }
 
     return this.decomposeResponse(resBuf);
+  }
+
+  protected prepareStartCommBufferContent(inputBuffer: Buffer) {
+    const startCommBuffer = Buffer.alloc(2);
+    startCommBuffer.writeUInt16BE(inputBuffer.length, 0);
+    return startCommBuffer;
   }
 
   /**
